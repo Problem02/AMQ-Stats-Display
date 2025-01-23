@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AMQ Stats Display
 // @namespace    https://animemusicquiz.com/
-// @version      1.0
+// @version      1.1
 // @description  Display stats
 // @author       Problem02
 // @match        https://animemusicquiz.com/*
@@ -25,9 +25,9 @@
 
         const data = JSON.parse(rawData);
         const stats = {
-            overall: { totalEntries: 0, correctCount: 0, totalPlays: 0, learned: 0, unlearned: 0, unplayed: 0 },
+            overall: { totalEntries: 0, correctCount: 0, gettable: 0, totalPlays: 0, learned: 0, unlearned: 0, unplayed: 0 },
             types: { OP: {}, ED: {}, IN: {} },
-            under30: { totalPlays: 0, correctCount: 0, learned: 0, unlearned: 0, unplayed: 0 },
+            under30: { totalEntries: 0, totalPlays: 0, correctCount: 0, gettable: 0, learned: 0, unlearned: 0, unplayed: 0 },
             animeStats: [],
             artistStats: [],
             songStats: [],
@@ -41,7 +41,7 @@
         const songData = {};
 
         types.forEach(type => {
-            stats.types[type] = { total: 0, plays: 0, correct: 0, learned: 0, unlearned: 0, unplayed: 0, under30: {} };
+            stats.types[type] = { total: 0, plays: 0, correct: 0, learned: 0, unlearned: 0, unplayed: 0, gettable: 0, under30: {} };
         });
 
         Object.entries(data).forEach(([_, entry]) => {
@@ -55,6 +55,7 @@
             // Update overall stats
             stats.overall.totalEntries++;
             stats.overall.correctCount += correct;
+            if (correct > 0) stats.overall.gettable++;
             stats.overall.totalPlays += plays;
             if (percentage >= 70) stats.overall.learned++;
             else if (plays > 0) stats.overall.unlearned++;
@@ -64,6 +65,7 @@
             const typeStats = stats.types[type];
             typeStats.total++;
             typeStats.plays += plays;
+            if (correct > 0) typeStats.gettable++;
             typeStats.correct += correct;
             if (percentage >= 70) typeStats.learned++;
             else if (plays > 0) typeStats.unlearned++;
@@ -71,8 +73,10 @@
 
             // Update under-30 stats
             if (diff < 30) {
+                stats.under30.totalEntries++;
                 stats.under30.totalPlays += plays;
                 stats.under30.correctCount += correct;
+                if (correct > 0) stats.under30.gettable++;
                 if (percentage >= 70) stats.under30.learned++;
                 else if (plays > 0) stats.under30.unlearned++;
                 else stats.under30.unplayed++;
@@ -205,38 +209,38 @@
             <h3>Overall Stats</h3>
             <p>Total entries: ${overall.totalEntries}</p>
             <p>Guess rate: ${overall.correctCount} / ${overall.totalPlays} ${(overall.correctCount / overall.totalPlays * 100).toFixed(2)}%</p>
-            <p>Gettable %: ${overall.learned + overall.unlearned} / ${overall.totalEntries} ${((overall.learned + overall.unlearned) / overall.totalEntries * 100).toFixed(2)}%</p>
+            <p>Gettable %: ${overall.gettable} / ${overall.totalEntries} ${((overall.gettable) / overall.totalEntries * 100).toFixed(2)}%</p>
             <p>Learned entries (>70%): ${overall.learned} / ${overall.totalEntries} ${(overall.learned / overall.totalEntries * 100).toFixed(2)}%</p>
             <p>Unlearned entries (<70%): ${overall.unlearned} / ${overall.totalEntries} ${(overall.unlearned / overall.totalEntries * 100).toFixed(2)}%</p>
             <p>Unplayed entries: ${overall.unplayed} / ${overall.totalEntries} ${(overall.unplayed / overall.totalEntries * 100).toFixed(2)}%</p>
             <hr>
             <h3>Openings: ${types.OP.total}</h3>
-            <p>Openings guess rate %: ${types.OP.correct} / ${types.OP.plays} ${(types.OP.correct / types.OP.plays * 100).toFixed(2)}</p>
-            <p>Openings gettable %: ${types.OP.learned + types.OP.unlearned} / ${types.OP.total} ${((types.OP.learned + types.OP.unlearned) / types.OP.total * 100).toFixed(2)}</p>
-            <p>Openings learned %: ${types.OP.learned} / ${types.OP.total} ${(types.OP.learned / types.OP.total * 100).toFixed(2)}</p>
-            <p>Openings unlearned %: ${(types.OP.unlearned / types.OP.total * 100).toFixed(2)}</p>
-            <p>Openings unplayed %: ${(types.OP.unplayed / types.OP.total * 100).toFixed(2)}</p>
+            <p>Openings guess rate %: ${types.OP.correct} / ${types.OP.plays} ${(types.OP.correct / types.OP.plays * 100).toFixed(2)}%</p>
+            <p>Openings gettable %: ${types.OP.gettable} / ${types.OP.total} ${((types.OP.gettable) / types.OP.total * 100).toFixed(2)}%</p>
+            <p>Openings learned %: ${types.OP.learned} / ${types.OP.total} ${(types.OP.learned / types.OP.total * 100).toFixed(2)}%</p>
+            <p>Openings unlearned %: ${(types.OP.unlearned / types.OP.total * 100).toFixed(2)}%</p>
+            <p>Openings unplayed %: ${(types.OP.unplayed / types.OP.total * 100).toFixed(2)}%</p>
             <hr>
             <h3>Endings: ${types.ED.total}</h3>
-            <p>Endings guess rate %: ${types.ED.correct} / ${types.ED.plays} ${(types.ED.correct / types.ED.plays * 100).toFixed(2)}</p>
-            <p>Endings gettable %: ${types.ED.learned + types.ED.unlearned} / ${types.ED.total} ${((types.ED.learned + types.ED.unlearned) / types.ED.total * 100).toFixed(2)}</p>
-            <p>Endings learned %: ${types.ED.learned} / ${types.ED.total} ${(types.ED.learned / types.ED.total * 100).toFixed(2)}</p>
-            <p>Endings unlearned %: ${(types.ED.unlearned / types.ED.total * 100).toFixed(2)}</p>
-            <p>Endings unplayed %: ${(types.ED.unplayed / types.ED.total * 100).toFixed(2)}</p>
+            <p>Endings guess rate %: ${types.ED.correct} / ${types.ED.plays} ${(types.ED.correct / types.ED.plays * 100).toFixed(2)}%</p>
+            <p>Endings gettable %: ${types.ED.gettable} / ${types.ED.total} ${((types.ED.gettable) / types.ED.total * 100).toFixed(2)}%</p>
+            <p>Endings learned %: ${types.ED.learned} / ${types.ED.total} ${(types.ED.learned / types.ED.total * 100).toFixed(2)}%</p>
+            <p>Endings unlearned %: ${(types.ED.unlearned / types.ED.total * 100).toFixed(2)}%</p>
+            <p>Endings unplayed %: ${(types.ED.unplayed / types.ED.total * 100).toFixed(2)}%</p>
             <hr>
             <h3>Inserts: ${types.IN.total}</h3>
-            <p>Inserts guess rate %: ${types.IN.correct} / ${types.IN.plays} ${(types.IN.correct / types.IN.plays * 100).toFixed(2)}</p>
-            <p>Inserts gettable %: ${types.IN.learned + types.IN.unlearned} / ${types.IN.total} ${((types.IN.learned + types.IN.unlearned) / types.IN.total * 100).toFixed(2)}</p>
-            <p>Inserts learned %: ${types.IN.learned} / ${types.IN.total} ${(types.IN.learned / types.IN.total * 100).toFixed(2)}</p>
-            <p>Inserts unlearned %: ${(types.IN.unlearned / types.IN.total * 100).toFixed(2)}</p>
-            <p>Inserts unplayed %: ${(types.IN.unplayed / types.IN.total * 100).toFixed(2)}</p>
+            <p>Inserts guess rate %: ${types.IN.correct} / ${types.IN.plays} ${(types.IN.correct / types.IN.plays * 100).toFixed(2)}%</p>
+            <p>Inserts gettable %: ${types.IN.gettable} / ${types.IN.total} ${((types.IN.gettable) / types.IN.total * 100).toFixed(2)}%</p>
+            <p>Inserts learned %: ${types.IN.learned} / ${types.IN.total} ${(types.IN.learned / types.IN.total * 100).toFixed(2)}%</p>
+            <p>Inserts unlearned %: ${(types.IN.unlearned / types.IN.total * 100).toFixed(2)}%</p>
+            <p>Inserts unplayed %: ${(types.IN.unplayed / types.IN.total * 100).toFixed(2)}%</p>
             <hr>
             <h3>Under 30 Overall</h3>
-            <p>Under 30 overall guess rate %: ${under30.correctCount} / ${under30.totalPlays} ${(under30.correctCount / under30.totalPlays * 100).toFixed(2)}</p>
-            <p>Under 30 overall gettable %: ${under30.learned + under30.unlearned} / ${under30.learned + under30.unlearned + under30.unplayed} ${((under30.learned + under30.unlearned) / (under30.learned + under30.unlearned + under30.unplayed) * 100).toFixed(2)}</p>
-            <p>Under 30 overall learned %: ${under30.learned} / ${under30.learned + under30.unlearned + under30.unplayed} ${(under30.learned / (under30.learned + under30.unlearned + under30.unplayed) * 100).toFixed(2)}</p>
-            <p>Under 30 overall unlearned %: ${(under30.unlearned / (under30.learned + under30.unlearned + under30.unplayed) * 100).toFixed(2)}</p>
-            <p>Under 30 overall unplayed %: ${(under30.unplayed / (under30.learned + under30.unlearned + under30.unplayed) * 100).toFixed(2)}</p>
+            <p>Under 30 overall guess rate %: ${under30.correctCount} / ${under30.totalPlays} ${(under30.correctCount / under30.totalPlays * 100).toFixed(2)}%</p>
+            <p>Under 30 overall gettable %: ${under30.gettable} / ${under30.totalEntries} ${((under30.gettable) / (under30.totalEntries) * 100).toFixed(2)}%</p>
+            <p>Under 30 overall learned %: ${under30.learned} / ${under30.totalEntries} ${(under30.learned / (under30.totalEntries) * 100).toFixed(2)}%</p>
+            <p>Under 30 overall unlearned %: ${(under30.unlearned / (under30.totalEntries) * 100).toFixed(2)}%</p>
+            <p>Under 30 overall unplayed %: ${(under30.unplayed / (under30.totalEntries) * 100).toFixed(2)}%</p>
         </div>
     `;
 }
