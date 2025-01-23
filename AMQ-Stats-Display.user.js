@@ -7,6 +7,8 @@
 // @match        https://animemusicquiz.com/*
 // @grant        none
 // @require      https://github.com/Nick-NCSU/AMQ-Extended-Song-List/raw/main/src/generator.user.js
+// @downloadURL  https://github.com/Nick-NCSU/AMQ-Extended-Song-List/raw/main/src/AMQ-Stats-Display.user.js
+// @updateURL    https://github.com/Nick-NCSU/AMQ-Extended-Song-List/raw/main/src/AMQ-Stats-Display.user.js
 // ==/UserScript==
 
 (function () {
