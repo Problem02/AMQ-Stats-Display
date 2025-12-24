@@ -983,16 +983,8 @@
 
     // Hide the search/filter bar on the Overall tab to reduce clutter
     const controls = root.querySelector("#asControls");
-    const isSongish = [
-      "songStats",
-      "songsToLearnStats",
-      "songsNeverGotStats",
-    ].includes(tabId);
     if (controls)
       controls.style.display = tabId === "overallStats" ? "none" : "flex";
-
-    const chipGroups = root.querySelector("#asFilterGroups");
-    if (chipGroups) chipGroups.style.display = isSongish ? "" : "none";
   }
   function decorateAcc(root) {
     // Adds accuracy badges. Safe to call multiple times.
@@ -1077,6 +1069,21 @@
         const isActive = (state[field] || "").toLowerCase() === value;
         chip.classList.toggle("as-chip-active", isActive);
       });
+    };
+
+    const applyAndSync = () => {
+      apply();
+      syncChips();
+    };
+
+    const setChipState = (field, value, { toggle = false, applyNow = true } = {}) => {
+      const normalizedValue = (value || "").toLowerCase();
+      const normalizedCurrent = (state[field] || "").toLowerCase();
+      const nextValue = toggle && normalizedCurrent === normalizedValue ? "" : value;
+      const changed = state[field] !== nextValue;
+      state[field] = nextValue;
+      if (applyNow && (changed || toggle)) applyAndSync();
+      return changed;
     };
 
     const apply = () => {
@@ -1176,14 +1183,19 @@
     // Allow other UI elements (e.g., Overall tab lists) to set filters robustly
     root.addEventListener("as-set-filters", (ev) => {
       const d = (ev && ev.detail) || {};
+      let dirty = false;
       ["search", "type", "anime", "artist", "song"].forEach((key) => {
         if (key in d) {
-          state[key] = String(d[key] || "");
-          if (key === "search" && search) search.value = state.search;
+          if (key === "search") {
+            state.search = String(d[key] || "");
+            if (search) search.value = state.search;
+            dirty = true;
+          } else {
+            dirty = setChipState(key, String(d[key] || ""), { applyNow: false }) || dirty;
+          }
         }
       });
-      apply();
-      syncChips();
+      if (dirty) applyAndSync();
     });
 
     root.querySelectorAll(".as-tab[data-tab]").forEach((btn) => {
@@ -1196,8 +1208,7 @@
     if (search)
       search.addEventListener("input", () => {
         state.search = search.value.trim();
-        apply();
-        syncChips();
+        applyAndSync();
       });
 
     const handleRangeInput = (inputEl, key) => {
@@ -1220,13 +1231,7 @@
         const field = chip.getAttribute("data-filter-field");
         const value = chip.getAttribute("data-filter-value") || "";
         if (!field) return;
-        const isActive =
-          (state[field] || "").toLowerCase() === value.toLowerCase();
-        root.dispatchEvent(
-          new CustomEvent("as-set-filters", {
-            detail: { [field]: isActive ? "" : value },
-          })
-        );
+        setChipState(field, value, { toggle: true });
       });
     }
 
@@ -1241,13 +1246,15 @@
         state.difficultyMax = "";
         state.recentMin = "";
         state.recentMax = "";
+        ["type", "anime", "artist", "song"].forEach((field) => {
+          setChipState(field, "", { applyNow: false });
+        });
         if (search) search.value = "";
         if (difficultyMin) difficultyMin.value = "";
         if (difficultyMax) difficultyMax.value = "";
         if (recentMin) recentMin.value = "";
         if (recentMax) recentMax.value = "";
-        syncChips();
-        apply();
+        applyAndSync();
       });
 
     root.querySelectorAll("[data-drill-anime]").forEach((el) => {
