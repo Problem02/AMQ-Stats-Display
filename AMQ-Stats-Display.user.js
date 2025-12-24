@@ -563,7 +563,9 @@
                               song.song
                             )}" data-plays="${song.plays}" data-artist="${escapeHtml(
         song.artist || ""
-      )}" data-anime="${escapeHtml(song.anime || "")}">
+      )}" data-anime="${escapeHtml(song.anime || "")}" data-difficulty="${
+        song.difficulty ?? ""
+      }" data-recent="${song.recentPercent ?? ""}">
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.song
                                 }</td>
@@ -671,7 +673,9 @@
                               song.song
                             )}" data-plays="${song.plays}" data-artist="${escapeHtml(
         song.artist || ""
-      )}" data-anime="${escapeHtml(song.anime || "")}">
+      )}" data-anime="${escapeHtml(song.anime || "")}" data-difficulty="${
+        song.difficulty ?? ""
+      }" data-recent="${song.recentPercent ?? ""}">
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.song
                                 }</td>
@@ -734,7 +738,9 @@
                               song.song
                             )}" data-plays="${song.plays}" data-artist="${escapeHtml(
         song.artist || ""
-      )}" data-anime="${escapeHtml(song.anime || "")}">
+      )}" data-anime="${escapeHtml(song.anime || "")}" data-difficulty="${
+        song.difficulty ?? ""
+      }" data-recent="${song.recentPercent ?? ""}">
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.song
                                 }</td>
@@ -782,6 +788,9 @@
             #statsModal .as-controls input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;min-width:240px;}
             #statsModal .as-controls label{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.95;}
             #statsModal .as-controls .as-pill{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:12px;}
+            #statsModal .as-controls .as-range-row{display:flex;gap:10px;flex-wrap:wrap;width:100%;}
+            #statsModal .as-controls .as-range-field{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.95;}
+            #statsModal .as-controls input.as-compact{min-width:120px;width:120px;}
             #statsModal .as-chip-groups{display:flex;gap:10px;flex-wrap:wrap;width:100%;}
             #statsModal .as-chip-column{flex:1 1 220px;min-width:200px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px;}
             #statsModal .as-chip-column h5{margin:0 0 6px;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;}
@@ -857,6 +866,18 @@
                   <input id="asSearch" type="text" placeholder="Search (anime / artist / song)..." />
                   <span class="as-pill" id="asFilterPill">No filters</span>
                   <button class="as-tab" id="asClearFilters" type="button">Clear</button>
+                </div>
+                <div class="as-range-row">
+                  <label class="as-range-field">Difficulty
+                    <input id="asDifficultyMin" class="as-compact" type="number" min="0" max="100" placeholder="Min %" />
+                    <span>–</span>
+                    <input id="asDifficultyMax" class="as-compact" type="number" min="0" max="100" placeholder="Max %" />
+                  </label>
+                  <label class="as-range-field">Recent
+                    <input id="asRecentMin" class="as-compact" type="number" min="0" max="100" placeholder="Min %" />
+                    <span>–</span>
+                    <input id="asRecentMax" class="as-compact" type="number" min="0" max="100" placeholder="Max %" />
+                  </label>
                 </div>
                 <div class="as-chip-groups" id="asFilterGroups">
                   <div class="as-chip-column">
@@ -1033,11 +1054,19 @@
       anime: "",
       artist: "",
       song: "",
+      difficultyMin: "",
+      difficultyMax: "",
+      recentMin: "",
+      recentMax: "",
     };
 
     const pill = root.querySelector("#asFilterPill");
     const search = root.querySelector("#asSearch");
     const clear = root.querySelector("#asClearFilters");
+    const difficultyMin = root.querySelector("#asDifficultyMin");
+    const difficultyMax = root.querySelector("#asDifficultyMax");
+    const recentMin = root.querySelector("#asRecentMin");
+    const recentMax = root.querySelector("#asRecentMax");
     const chipGroups = root.querySelector("#asFilterGroups");
 
     const syncChips = () => {
@@ -1053,6 +1082,18 @@
     const apply = () => {
       const activeId = root.querySelector(".as-section.as-visible")?.id;
       const q = state.search.toLowerCase();
+      const diffMin = Number.isFinite(parseFloat(state.difficultyMin))
+        ? parseFloat(state.difficultyMin)
+        : null;
+      const diffMax = Number.isFinite(parseFloat(state.difficultyMax))
+        ? parseFloat(state.difficultyMax)
+        : null;
+      const recentMinVal = Number.isFinite(parseFloat(state.recentMin))
+        ? parseFloat(state.recentMin)
+        : null;
+      const recentMaxVal = Number.isFinite(parseFloat(state.recentMax))
+        ? parseFloat(state.recentMax)
+        : null;
 
       const parts = [];
       if (state.search) parts.push(`Search: "${state.search}"`);
@@ -1060,6 +1101,18 @@
       if (state.anime) parts.push(`Anime: ${state.anime}`);
       if (state.artist) parts.push(`Artist: ${state.artist}`);
       if (state.type) parts.push(`Type: ${state.type}`);
+      if (diffMin !== null || diffMax !== null)
+        parts.push(
+          `Difficulty: ${diffMin !== null ? diffMin : 0}–${
+            diffMax !== null ? diffMax : 100
+          }%`
+        );
+      if (recentMinVal !== null || recentMaxVal !== null)
+        parts.push(
+          `Recent: ${recentMinVal !== null ? recentMinVal : 0}–${
+            recentMaxVal !== null ? recentMaxVal : 100
+          }%`
+        );
       if (pill)
         pill.textContent = parts.length ? parts.join(" · ") : "No filters";
 
@@ -1080,6 +1133,8 @@
           const rowAnime = (tr.getAttribute("data-anime") || "").toLowerCase();
           const rowArtist = (tr.getAttribute("data-artist") || "").toLowerCase();
           const rowSong = (tr.getAttribute("data-song") || "").toLowerCase();
+          const rowDiff = parseFloat(tr.getAttribute("data-difficulty"));
+          const rowRecent = parseFloat(tr.getAttribute("data-recent"));
 
           if (state.type && rowType.toLowerCase() !== state.type.toLowerCase())
             ok = false;
@@ -1094,6 +1149,22 @@
             ok &&
             state.artist &&
             !rowArtist.includes(state.artist.toLowerCase())
+          )
+            ok = false;
+          if (ok && diffMin !== null && (!Number.isFinite(rowDiff) || rowDiff < diffMin))
+            ok = false;
+          if (ok && diffMax !== null && (!Number.isFinite(rowDiff) || rowDiff > diffMax))
+            ok = false;
+          if (
+            ok &&
+            recentMinVal !== null &&
+            (!Number.isFinite(rowRecent) || rowRecent < recentMinVal)
+          )
+            ok = false;
+          if (
+            ok &&
+            recentMaxVal !== null &&
+            (!Number.isFinite(rowRecent) || rowRecent > recentMaxVal)
           )
             ok = false;
         }
@@ -1129,6 +1200,19 @@
         syncChips();
       });
 
+    const handleRangeInput = (inputEl, key) => {
+      if (!inputEl) return;
+      inputEl.addEventListener("input", () => {
+        state[key] = inputEl.value.trim();
+        apply();
+      });
+    };
+
+    handleRangeInput(difficultyMin, "difficultyMin");
+    handleRangeInput(difficultyMax, "difficultyMax");
+    handleRangeInput(recentMin, "recentMin");
+    handleRangeInput(recentMax, "recentMax");
+
     if (chipGroups) {
       chipGroups.addEventListener("click", (e) => {
         const chip = e.target.closest(".as-chip");
@@ -1153,7 +1237,15 @@
         state.anime = "";
         state.artist = "";
         state.song = "";
+        state.difficultyMin = "";
+        state.difficultyMax = "";
+        state.recentMin = "";
+        state.recentMax = "";
         if (search) search.value = "";
+        if (difficultyMin) difficultyMin.value = "";
+        if (difficultyMax) difficultyMax.value = "";
+        if (recentMin) recentMin.value = "";
+        if (recentMax) recentMax.value = "";
         syncChips();
         apply();
       });
