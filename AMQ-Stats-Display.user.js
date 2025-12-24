@@ -38,7 +38,37 @@
             padding: 0 !important;
             white-space: nowrap;
         }
-    `;
+
+
+            /* --- UI enhancements --- */
+            #statsModal{ --good:46,204,113; --ok:241,196,15; --bad:231,76,60; --ink:255,255,255; }
+
+            #statsModal .as-summary{display:flex;gap:10px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);}
+            #statsModal .as-kpi{padding:6px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);font-variant-numeric:tabular-nums;min-width:120px;}
+            #statsModal .as-kpi b{display:block;font-size:12px;opacity:.75;margin-bottom:2px;}
+            #statsModal .as-kpi span{font-size:14px;font-weight:700;}            #statsModal .as-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:12px;}
+            #statsModal .as-card{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);border-radius:12px;padding:10px 12px;}
+            #statsModal .as-card h4{margin:0 0 8px 0;font-size:13px;opacity:.9;}
+            #statsModal .as-card .as-row{display:flex;justify-content:space-between;gap:10px;font-variant-numeric:tabular-nums;padding:3px 0;border-bottom:1px dashed rgba(255,255,255,.10);}
+            #statsModal .as-card .as-row:last-child{border-bottom:none;}
+            #statsModal .as-card .as-row .as-muted{opacity:.75;}
+
+            #statsModal .as-actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border-bottom:1px solid rgba(255,255,255,.08);}
+            #statsModal .as-actions .as-action{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;padding:6px 10px;border-radius:10px;cursor:pointer;font-size:13px;}
+            #statsModal .as-actions .as-action:hover{background:rgba(255,255,255,.09);}
+
+            #statsModal .as-badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(var(--ink),.18);background:rgba(255,255,255,.06);white-space:nowrap;font-variant-numeric:tabular-nums;}
+            #statsModal .as-badge.good{background:rgba(var(--good),.18);border-color:rgba(var(--good),.40);}
+            #statsModal .as-badge.ok{background:rgba(var(--ok),.18);border-color:rgba(var(--ok),.40);}
+            #statsModal .as-badge.bad{background:rgba(var(--bad),.18);border-color:rgba(var(--bad),.40);}
+/* Compact density (default) */
+            #statsModal table{font-size:12px;}
+            #statsModal tbody td{padding:4px 6px !important;}
+            #statsModal thead th{padding:6px 8px !important;}
+            #statsModal h3{margin:8px 0 !important;}
+            #statsModal .as-controls{gap:8px;}
+
+`;
     document.head.appendChild(style);
   }
 
@@ -262,104 +292,149 @@
     return stats;
   }
 
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function formatOverallStats(stats) {
     const { overall, under30, types } = stats;
+
+    const safePct = (num, den) => (den > 0 ? (num / den) * 100 : 0);
+
+    const acc = safePct(overall.correctCount, overall.totalPlays);
+    const gettablePct = safePct(overall.gettable, overall.totalEntries);
+    const learnedPct = safePct(overall.learned, overall.totalEntries);
+    const unplayedPct = safePct(overall.unplayed, overall.totalEntries);
+
+    const topPlayed = (stats.songStats || []).slice(0, 5);
+    const worst = (stats.songStats || [])
+      .filter((s) => (s.plays || 0) >= 5)
+      .slice()
+      .sort((a, b) => (a.percentage || 0) - (b.percentage || 0))
+      .slice(0, 5);
+
+    const listItem = (s) => `
+      <li style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08);">
+        <span>
+          <span class="as-clickable" data-goto-tab="songStats" data-goto-song="${escapeHtml(
+            s.song
+          )}" data-goto-artist="${escapeHtml(
+      s.artist
+    )}" data-goto-search="${escapeHtml(s.song)}">${escapeHtml(s.song)}</span>
+          <span class="as-muted"> — ${escapeHtml(s.artist)}</span>
+        </span>
+        <span class="as-muted">plays: ${s.plays} · ${(
+      s.percentage || 0
+    ).toFixed(2)}%</span>
+      </li>`;
+
+    const typeCard = (label, t) => {
+      const tAcc = safePct(t.correct || 0, t.plays || 0);
+      const tGet = safePct(t.gettable || 0, t.total || 0);
+      const tLearn = safePct(t.learned || 0, t.total || 0);
+      return `
+        <div class="as-card">
+          <h4>${label}</h4>
+          <div class="as-row"><span class="as-muted">Entries</span><span>${
+            t.total || 0
+          }</span></div>
+          <div class="as-row"><span class="as-muted">Plays</span><span>${
+            t.plays || 0
+          }</span></div>
+          <div class="as-row"><span class="as-muted">Accuracy</span><span>${
+            t.correct || 0
+          } / ${t.plays || 0} ${tAcc.toFixed(2)}%</span></div>
+          <div class="as-row"><span class="as-muted">Gettable</span><span>${
+            t.gettable || 0
+          } / ${t.total || 0} ${tGet.toFixed(2)}%</span></div>
+          <div class="as-row"><span class="as-muted">Learned</span><span>${
+            t.learned || 0
+          } / ${t.total || 0} ${tLearn.toFixed(2)}%</span></div>
+        </div>`;
+    };
+
+    const uAcc = safePct(under30.correctCount, under30.totalPlays);
+    const uLearn = safePct(under30.learned, under30.totalEntries);
+
     return `
             <div id="overallStats">
-                <h3>Overall Stats</h3>
-                <p>Total entries: ${overall.totalEntries}</p>
-                <p>Guess rate: ${overall.correctCount} / ${
-      overall.totalPlays
-    } ${((overall.correctCount / overall.totalPlays) * 100).toFixed(2)}%</p>
-                <p>Gettable %: ${overall.gettable} / ${overall.totalEntries} ${(
-      (overall.gettable / overall.totalEntries) *
-      100
-    ).toFixed(2)}%</p>
-                <p>Learned entries (>70%): ${overall.learned} / ${
-      overall.totalEntries
-    } ${((overall.learned / overall.totalEntries) * 100).toFixed(2)}%</p>
-                <p>Unlearned entries (<70%): ${overall.unlearned} / ${
-      overall.totalEntries
-    } ${((overall.unlearned / overall.totalEntries) * 100).toFixed(2)}%</p>
-                <p>Unplayed entries: ${overall.unplayed} / ${
-      overall.totalEntries
-    } ${((overall.unplayed / overall.totalEntries) * 100).toFixed(2)}%</p>
-                <hr>
-                <h3>Openings: ${types.OP.total}</h3>
-                <p>Openings guess rate %: ${types.OP.correct} / ${
-      types.OP.plays
-    } ${((types.OP.correct / types.OP.plays) * 100).toFixed(2)}%</p>
-                <p>Openings gettable %: ${types.OP.gettable} / ${
-      types.OP.total
-    } ${((types.OP.gettable / types.OP.total) * 100).toFixed(2)}%</p>
-                <p>Openings learned %: ${types.OP.learned} / ${
-      types.OP.total
-    } ${((types.OP.learned / types.OP.total) * 100).toFixed(2)}%</p>
-                <p>Openings unlearned %: ${(
-                  (types.OP.unlearned / types.OP.total) *
-                  100
-                ).toFixed(2)}%</p>
-                <p>Openings unplayed %: ${(
-                  (types.OP.unplayed / types.OP.total) *
-                  100
-                ).toFixed(2)}%</p>
-                <hr>
-                <h3>Endings: ${types.ED.total}</h3>
-                <p>Endings guess rate %: ${types.ED.correct} / ${
-      types.ED.plays
-    } ${((types.ED.correct / types.ED.plays) * 100).toFixed(2)}%</p>
-                <p>Endings gettable %: ${types.ED.gettable} / ${
-      types.ED.total
-    } ${((types.ED.gettable / types.ED.total) * 100).toFixed(2)}%</p>
-                <p>Endings learned %: ${types.ED.learned} / ${
-      types.ED.total
-    } ${((types.ED.learned / types.ED.total) * 100).toFixed(2)}%</p>
-                <p>Endings unlearned %: ${(
-                  (types.ED.unlearned / types.ED.total) *
-                  100
-                ).toFixed(2)}%</p>
-                <p>Endings unplayed %: ${(
-                  (types.ED.unplayed / types.ED.total) *
-                  100
-                ).toFixed(2)}%</p>
-                <hr>
-                <h3>Inserts: ${types.IN.total}</h3>
-                <p>Inserts guess rate %: ${types.IN.correct} / ${
-      types.IN.plays
-    } ${((types.IN.correct / types.IN.plays) * 100).toFixed(2)}%</p>
-                <p>Inserts gettable %: ${types.IN.gettable} / ${
-      types.IN.total
-    } ${((types.IN.gettable / types.IN.total) * 100).toFixed(2)}%</p>
-                <p>Inserts learned %: ${types.IN.learned} / ${
-      types.IN.total
-    } ${((types.IN.learned / types.IN.total) * 100).toFixed(2)}%</p>
-                <p>Inserts unlearned %: ${(
-                  (types.IN.unlearned / types.IN.total) *
-                  100
-                ).toFixed(2)}%</p>
-                <p>Inserts unplayed %: ${(
-                  (types.IN.unplayed / types.IN.total) *
-                  100
-                ).toFixed(2)}%</p>
-                <hr>
-                <h3>Under 30 Overall</h3>
-                <p>Under 30 overall guess rate %: ${under30.correctCount} / ${
-      under30.totalPlays
-    } ${((under30.correctCount / under30.totalPlays) * 100).toFixed(2)}%</p>
-                <p>Under 30 overall gettable %: ${under30.gettable} / ${
-      under30.totalEntries
-    } ${((under30.gettable / under30.totalEntries) * 100).toFixed(2)}%</p>
-                <p>Under 30 overall learned %: ${under30.learned} / ${
-      under30.totalEntries
-    } ${((under30.learned / under30.totalEntries) * 100).toFixed(2)}%</p>
-                <p>Under 30 overall unlearned %: ${(
-                  (under30.unlearned / under30.totalEntries) *
-                  100
-                ).toFixed(2)}%</p>
-                <p>Under 30 overall unplayed %: ${(
-                  (under30.unplayed / under30.totalEntries) *
-                  100
-                ).toFixed(2)}%</p>
+              <div class="as-summary">
+                <div class="as-kpi"><b>Total entries</b><span>${
+                  overall.totalEntries
+                }</span></div>
+                <div class="as-kpi"><b>Total plays</b><span>${
+                  overall.totalPlays
+                }</span></div>
+                <div class="as-kpi"><b>Accuracy</b><span>${acc.toFixed(
+                  2
+                )}%</span></div>
+                <div class="as-kpi"><b>Gettable</b><span>${gettablePct.toFixed(
+                  2
+                )}%</span></div>
+                <div class="as-kpi"><b>Learned (&gt;70%)</b><span>${learnedPct.toFixed(
+                  2
+                )}%</span></div>
+                <div class="as-kpi"><b>Unplayed</b><span>${unplayedPct.toFixed(
+                  2
+                )}%</span></div>
+              </div>
+
+              <div class="as-actions">
+                <button class="as-action" type="button" data-goto-tab="songStats">Browse songs</button>
+                <button class="as-action" type="button" data-goto-tab="songsToLearnStats">Songs to learn</button>
+                <button class="as-action" type="button" data-goto-tab="songsNeverGotStats">Never got</button>
+                <button class="as-action" type="button" data-goto-tab="animeToLearnStats">Anime to learn</button>
+              </div>
+
+              <div class="as-grid">
+                ${typeCard("Openings (OP)", types.OP || {})}
+                ${typeCard("Endings (ED)", types.ED || {})}
+                ${typeCard("Inserts (IN)", types.IN || {})}
+              </div>
+
+              <div class="as-grid">
+                <div class="as-card">
+                  <h4>Recent (under 30 days)</h4>
+                  <div class="as-row"><span class="as-muted">Entries</span><span>${
+                    under30.totalEntries
+                  }</span></div>
+                  <div class="as-row"><span class="as-muted">Plays</span><span>${
+                    under30.totalPlays
+                  }</span></div>
+                  <div class="as-row"><span class="as-muted">Accuracy</span><span>${
+                    under30.correctCount
+                  } / ${under30.totalPlays} ${uAcc.toFixed(2)}%</span></div>
+                  <div class="as-row"><span class="as-muted">Learned</span><span>${
+                    under30.learned
+                  } / ${under30.totalEntries} ${uLearn.toFixed(2)}%</span></div>
+                </div>
+
+                <div class="as-card">
+                  <h4>Most played (top 5)</h4>
+                  <ul style="list-style:none;margin:0;padding:0;">
+                    ${
+                      topPlayed.map(listItem).join("") ||
+                      `<li class="as-muted">No data</li>`
+                    }
+                  </ul>
+                </div>
+
+                <div class="as-card">
+                  <h4>Worst accuracy (min 5 plays)</h4>
+                  <ul style="list-style:none;margin:0;padding:0;">
+                    ${
+                      worst.map(listItem).join("") ||
+                      `<li class="as-muted">No data</li>`
+                    }
+                  </ul>
+                </div>
+              </div>
             </div>
         `;
   }
@@ -743,7 +818,7 @@
                 <button class="as-close" data-action="close">Close</button>
               </div>
 
-              <div class="as-controls">
+              <div class="as-controls" id="asControls">
                 <input id="asSearch" type="text" placeholder="Search (anime / artist / song)..." />
                 <select id="asType">
                   <option value="ALL">All Types</option>
@@ -751,9 +826,8 @@
                   <option value="ED">ED</option>
                   <option value="IN">IN</option>
                 </select>
-                <label><input id="asHideUnplayed" type="checkbox" /> Hide unplayed</label>
                 <span class="as-pill" id="asFilterPill">No filters</span>
-                <button class="as-tab" id="asClearFilters" type="button">Clear</button>
+<button class="as-tab" id="asClearFilters" type="button">Clear</button>
               </div>
 
               <div class="as-body" id="asBody">
@@ -793,10 +867,42 @@
       }
     });
 
+    // quick navigation from overall (or anywhere)
+    root.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-goto-tab]");
+      if (!t) return;
+      e.preventDefault();
+      const tabId = t.dataset.gotoTab;
+      const tabBtn = root.querySelector(`.as-tab[data-tab="${tabId}"]`);
+      if (tabBtn) tabBtn.click(); // triggers filtering apply()
+      const q = t.dataset.gotoSearch || "";
+      const song = t.dataset.gotoSong || "";
+      const artist = t.dataset.gotoArtist || "";
+
+      // If we have structured song/artist, apply a robust filter (song name + artist)
+      if (song || artist) {
+        root.dispatchEvent(
+          new CustomEvent("as-set-filters", {
+            detail: {
+              search: song || q,
+              artist: artist || "",
+            },
+          })
+        );
+      } else if (q) {
+        const search = root.querySelector("#asSearch");
+        if (search) {
+          search.value = q;
+          search.dispatchEvent(new Event("input"));
+        }
+      }
+    });
+
     document.body.appendChild(root);
 
     initTableSorting(root);
     initFilteringAndDrilldown(root);
+    decorateAcc(root);
   }
 
   function setActiveTab(root, tabId) {
@@ -806,15 +912,45 @@
     root
       .querySelectorAll(".as-section")
       .forEach((sec) => sec.classList.toggle("as-visible", sec.id === tabId));
+
+    // Hide the search/filter bar on the Overall tab to reduce clutter
+    const controls = root.querySelector("#asControls");
+    if (controls)
+      controls.style.display = tabId === "overallStats" ? "none" : "flex";
+
+    // Type selector is only relevant for song-related tabs
     const typeSel = root.querySelector("#asType");
-    const hide = root.querySelector("#asHideUnplayed");
     const isSongish = [
       "songStats",
       "songsToLearnStats",
       "songsNeverGotStats",
     ].includes(tabId);
-    typeSel.style.display = isSongish ? "" : "none";
-    hide.style.display = isSongish ? "" : "none";
+    if (typeSel) typeSel.style.display = isSongish ? "" : "none";
+  }
+  function decorateAcc(root) {
+    // Adds accuracy badges. Safe to call multiple times.
+    const nodes = root.querySelectorAll(
+      "#statsModal td, #statsModal p, #statsModal li, #statsModal span"
+    );
+    nodes.forEach((el) => {
+      if (!el || !el.textContent) return;
+      if (el.querySelector && el.querySelector(".as-badge")) return; // already decorated
+
+      const txt = el.textContent;
+      const m = txt.match(/(\d+(?:\.\d+)?)%/);
+      if (!m) return;
+
+      const pct = Math.max(0, Math.min(100, parseFloat(m[1])));
+      const badgeClass = pct >= 70 ? "good" : pct <= 29 ? "bad" : "ok";
+      const badgeHtml = `<span class="as-badge ${badgeClass}">${pct.toFixed(
+        2
+      )}%</span>`;
+
+      // Replace only the first occurrence of the matched percent
+      if (el.innerHTML && el.innerHTML.includes(m[0])) {
+        el.innerHTML = el.innerHTML.replace(m[0], badgeHtml);
+      }
+    });
   }
 
   function initTableSorting(root) {
@@ -848,7 +984,6 @@
     const state = {
       search: "",
       type: "ALL",
-      hideUnplayed: false,
       anime: "",
       artist: "",
     };
@@ -856,8 +991,23 @@
     const pill = root.querySelector("#asFilterPill");
     const search = root.querySelector("#asSearch");
     const type = root.querySelector("#asType");
-    const hide = root.querySelector("#asHideUnplayed");
     const clear = root.querySelector("#asClearFilters");
+
+    // Allow other UI elements (e.g., Overall tab lists) to set filters robustly
+    root.addEventListener("as-set-filters", (ev) => {
+      const d = (ev && ev.detail) || {};
+      if ("search" in d) {
+        state.search = String(d.search || "");
+        if (search) search.value = state.search;
+      }
+      if ("type" in d) {
+        state.type = String(d.type || "ALL");
+        if (type) type.value = state.type;
+      }
+      if ("anime" in d) state.anime = String(d.anime || "");
+      if ("artist" in d) state.artist = String(d.artist || "");
+      apply();
+    });
 
     const apply = () => {
       const activeId = root.querySelector(".as-section.as-visible")?.id;
@@ -868,7 +1018,6 @@
       if (state.anime) parts.push(`Anime: ${state.anime}`);
       if (state.artist) parts.push(`Artist: ${state.artist}`);
       if (state.type !== "ALL") parts.push(`Type: ${state.type}`);
-      if (state.hideUnplayed) parts.push(`Hide unplayed`);
       pill.textContent = parts.length ? parts.join(" · ") : "No filters";
 
       root.querySelectorAll(".as-section table tbody tr").forEach((tr) => {
@@ -894,7 +1043,6 @@
           ).toLowerCase();
 
           if (state.type !== "ALL" && rowType !== state.type) ok = false;
-          if (ok && state.hideUnplayed && plays === 0) ok = false;
           if (
             ok &&
             state.anime &&
@@ -928,20 +1076,14 @@
       state.type = type.value;
       apply();
     });
-    hide.addEventListener("change", () => {
-      state.hideUnplayed = hide.checked;
-      apply();
-    });
 
     clear.addEventListener("click", () => {
       state.search = "";
       state.type = "ALL";
-      state.hideUnplayed = false;
       state.anime = "";
       state.artist = "";
       search.value = "";
       type.value = "ALL";
-      hide.checked = false;
       apply();
     });
 
@@ -1043,84 +1185,10 @@
   }
 
   // ---------------------------
-  // Live tracking (unchanged)
-  // ---------------------------
-
-  function setupLiveTracking() {
-    if (window.__amqStatsDisplayLiveTrackingSetup) return;
-    window.__amqStatsDisplayLiveTrackingSetup = true;
-
-    if (typeof Listener !== "function") return;
-
-    const listener = new Listener("answer results", (payload) => {
-      try {
-        const quizObj = window.quiz;
-        if (!quizObj) return;
-
-        const songId =
-          payload?.songInfo?.songId ??
-          payload?.songId ??
-          payload?.songInfo?.song?.songId ??
-          null;
-
-        if (!songId) return;
-
-        let isCorrect = false;
-        const myId = quizObj.ownGamePlayerId;
-
-        if (payload?.players && myId != null && payload.players[myId]) {
-          const p = payload.players[myId];
-          isCorrect = !!(p.correct ?? p.correctAnswer ?? p.isCorrect);
-        } else if (
-          Array.isArray(payload?.correctAnswerPlayers) &&
-          myId != null
-        ) {
-          isCorrect = payload.correctAnswerPlayers.includes(myId);
-        }
-
-        const key = "amqStatsDisplayHistory";
-        const hist = JSON.parse(localStorage.getItem(key) || "{}");
-        if (!hist[songId]) hist[songId] = { plays: 0, correct: 0 };
-        hist[songId].plays += 1;
-        if (isCorrect) hist[songId].correct += 1;
-        localStorage.setItem(key, JSON.stringify(hist));
-
-        const raw = localStorage.getItem("extendedSongList");
-        if (!raw) return;
-
-        const data = JSON.parse(raw);
-
-        for (const k in data) {
-          const entry = data[k];
-          const entrySongId =
-            entry?.songId ?? entry?.songInfo?.songId ?? entry?.id ?? null;
-          if (String(entrySongId) !== String(songId)) continue;
-
-          entry.totalCorrectCount =
-            (entry.totalCorrectCount || 0) + (isCorrect ? 1 : 0);
-          entry.totalWrongCount =
-            (entry.totalWrongCount || 0) + (isCorrect ? 0 : 1);
-          data[k] = entry;
-          break;
-        }
-
-        localStorage.setItem("extendedSongList", JSON.stringify(data));
-      } catch (e) {
-        // swallow
-      }
-    });
-
-    try {
-      listener.bindListener();
-    } catch (e) {}
-  }
-
-  // ---------------------------
   // Boot / keepalive
   // ---------------------------
 
   function boot() {
-    setupLiveTracking();
     hookLobbyLifecycle();
     // If lobby already exists but setupLobby hasn’t fired yet, try add
     try {
