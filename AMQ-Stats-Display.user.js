@@ -68,6 +68,17 @@
             #statsModal h3{margin:8px 0 !important;}
             #statsModal .as-controls{gap:8px;}
 
+
+/* --- Daily accuracy mini chart --- */
+#statsModal .as-miniChart{margin-top:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.10);position:relative;}
+#statsModal .as-miniChartTitle{font-size:12px;opacity:.85;margin:0 0 6px 0;}
+#statsModal #asDailyAccuracyCanvas{width:100%;height:110px;display:block;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.10);border-radius:10px;}
+#statsModal .as-miniChartEmpty{margin-top:6px;font-size:12px;opacity:.7;display:none;}
+#statsModal .as-miniTooltip{position:absolute;left:0;top:0;display:none;pointer-events:none;z-index:5;
+  background:rgba(20,20,20,.92);border:1px solid rgba(255,255,255,.18);border-radius:10px;
+  padding:6px 8px;color:#fff;font-size:12px;line-height:1.2;white-space:nowrap;
+  box-shadow:0 6px 18px rgba(0,0,0,.35);}
+
 `;
     document.head.appendChild(style);
   }
@@ -292,6 +303,303 @@
     return stats;
   }
 
+  // ---------------------------
+  // Daily accuracy tracking + graph
+  // ---------------------------
+  const DAILY_ACC_KEY = "amqStatsDailyAccuracy_v1";
+
+  function getLocalISODate() {
+    const d = new Date();
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  }
+
+  function loadDailyAcc() {
+    try {
+      return JSON.parse(localStorage.getItem(DAILY_ACC_KEY) || "{}") || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveDailyAcc(obj) {
+    try {
+      localStorage.setItem(DAILY_ACC_KEY, JSON.stringify(obj));
+    } catch (e) {}
+  }
+
+  function recordDailyResult(isCorrect) {
+    const day = getLocalISODate();
+    const store = loadDailyAcc();
+    if (!store[day]) store[day] = { correct: 0, total: 0 };
+    store[day].total += 1;
+    if (isCorrect) store[day].correct += 1;
+    saveDailyAcc(store);
+
+    // If the modal is open, redraw immediately
+    const modal = document.getElementById("statsModal");
+    if (modal) {
+      try {
+        renderDailyAccuracyChart(modal);
+      } catch (e) {}
+    }
+  }
+
+  function getLastNDays(n) {
+    const days = [];
+    const now = new Date();
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+      days.push(local.toISOString().slice(0, 10));
+    }
+    return days;
+  }
+
+  function renderDailyAccuracyChart(root) {
+    const canvas = root.querySelector("#asDailyAccuracyCanvas");
+    const emptyEl = root.querySelector("#asDailyAccuracyEmpty");
+    const wrap = root.querySelector("#asDailyAccuracyWrap");
+    if (!canvas || !wrap) return;
+
+    const store = loadDailyAcc();
+    const days = getLastNDays(30);
+    const points = days.map((day) => {
+      const v = store[day];
+      if (!v || !v.total) return null;
+      return {
+        day,
+        pct: (v.correct / v.total) * 100,
+        correct: v.correct,
+        total: v.total,
+      };
+    });
+
+    const hasAny = points.some((p) => p !== null);
+    if (!hasAny) {
+      if (emptyEl) emptyEl.style.display = "block";
+      const ctx0 = canvas.getContext("2d");
+      if (ctx0) ctx0.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    } else {
+      if (emptyEl) emptyEl.style.display = "none";
+    }
+
+    // Size the canvas to match its CSS width (for crisp rendering)
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(200, Math.floor(rect.width));
+    const height = Math.max(
+      96,
+      Math.floor(canvas.getAttribute("height") || 115)
+    );
+    canvas.width = width * (window.devicePixelRatio || 1);
+    canvas.height = height * (window.devicePixelRatio || 1);
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    // chart area
+    const padL = 28,
+      padR = 10,
+      padT = 10,
+      padB = 18;
+    const cw = width - padL - padR;
+    const ch = height - padT - padB;
+
+    // find y range
+    const ys = points.filter(Boolean).map((p) => p.pct);
+    let yMin = Math.min(...ys);
+    let yMax = Math.max(...ys);
+    // pad y-range a bit; clamp to [0,100]
+    yMin = Math.max(0, Math.floor((yMin - 5) / 5) * 5);
+    yMax = Math.min(100, Math.ceil((yMax + 5) / 5) * 5);
+    if (yMax === yMin) yMax = Math.min(100, yMin + 10);
+
+    const xFor = (i) => padL + (i / (days.length - 1)) * cw;
+    const yFor = (pct) => padT + (1 - (pct - yMin) / (yMax - yMin)) * ch;
+
+    // grid + y labels (3 lines)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    ctx.fillStyle = "rgba(255,255,255,.55)";
+    ctx.font = "11px Arial, sans-serif";
+
+    const gridLines = 3;
+    for (let g = 0; g <= gridLines; g++) {
+      const t = g / gridLines;
+      const y = padT + t * ch;
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + cw, y);
+      ctx.stroke();
+
+      const val = Math.round(yMax - t * (yMax - yMin));
+      ctx.fillText(String(val), 4, y + 4);
+    }
+
+    // line
+    ctx.strokeStyle = "rgba(255,255,255,.85)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    points.forEach((p, i) => {
+      if (!p) return;
+      const x = xFor(i);
+      const y = yFor(p.pct);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.stroke();
+
+    // dots
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    points.forEach((p, i) => {
+      if (!p) return;
+      const x = xFor(i);
+      const y = yFor(p.pct);
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Hover data (for tooltip)
+    const hoverPts = [];
+    points.forEach((p, i) => {
+      if (!p) return;
+      hoverPts.push({
+        x: xFor(i),
+        y: yFor(p.pct),
+        day: p.day,
+        pct: p.pct,
+        correct: p.correct,
+        total: p.total,
+      });
+    });
+    canvas.__asDailyHoverPts = hoverPts;
+
+    // Bind hover handlers once
+    if (!canvas.dataset.asHoverBound) {
+      canvas.dataset.asHoverBound = "1";
+      const tip = root.querySelector("#asDailyAccuracyTooltip");
+
+      const hideTip = () => {
+        if (tip) tip.style.display = "none";
+      };
+
+      const showTip = (pt, mx, my) => {
+        if (!tip) return;
+        tip.innerHTML = `${pt.day}<br><b>${pt.pct.toFixed(2)}%</b> (${
+          pt.correct
+        }/${pt.total})`;
+        tip.style.display = "block";
+
+        const rect = canvas.getBoundingClientRect();
+        const tw = tip.offsetWidth || 140;
+        const th = tip.offsetHeight || 40;
+
+        // Clamp tooltip inside canvas box
+        const left = Math.max(6, Math.min(rect.width - tw - 6, mx + 12));
+        const top = Math.max(6, Math.min(rect.height - th - 6, my - th - 10));
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+      };
+
+      canvas.addEventListener("mousemove", (e) => {
+        const pts = canvas.__asDailyHoverPts || [];
+        if (!pts.length) return hideTip();
+
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        let best = null;
+        let bestD2 = Infinity;
+        for (const p of pts) {
+          const dx = mx - p.x;
+          const dy = my - p.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = p;
+          }
+        }
+
+        if (best && bestD2 <= 11 * 11) showTip(best, mx, my);
+        else hideTip();
+      });
+
+      canvas.addEventListener("mouseleave", hideTip);
+    }
+
+    // x labels (every 7 days)
+    ctx.fillStyle = "rgba(255,255,255,.55)";
+    for (let i = 0; i < days.length; i += 7) {
+      const day = days[i];
+      const label = day.slice(5); // MM-DD
+      const x = xFor(i);
+      ctx.fillText(label, x - 14, padT + ch + 14);
+    }
+  }
+
+  function initDailyAccuracyTracking() {
+    if (window.__amqStatsDailyAccHooked) return;
+    window.__amqStatsDailyAccHooked = true;
+
+    const tryBind = () => {
+      const ListenerCtor =
+        window.Listener || (typeof Listener !== "undefined" ? Listener : null);
+      const quizObj = window.quiz;
+
+      if (!ListenerCtor || !quizObj || !quizObj.players) return false;
+
+      try {
+        const l = new ListenerCtor("answer results", (event) => {
+          try {
+            const self = Object.values(quizObj.players).find(
+              (p) => p.isSelf && p._inGame
+            );
+            if (!self) return;
+
+            const plist = Array.isArray(event.players)
+              ? event.players
+              : event.players
+              ? Object.values(event.players)
+              : [];
+            const selfRes = plist.find(
+              (p) => p.gamePlayerId === self.gamePlayerId
+            );
+            if (!selfRes) return;
+
+            recordDailyResult(!!selfRes.correct);
+          } catch (e) {}
+        });
+
+        if (typeof l.bindListener === "function") l.bindListener();
+        else if (typeof l.bind === "function") l.bind();
+        else if (typeof l.on === "function") l.on();
+        else {
+          // last resort: if ListenerCtor itself behaves differently, we just stop trying
+        }
+
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    // Bind once AMQ is fully loaded (quiz + Listener exist)
+    const interval = setInterval(() => {
+      if (tryBind()) clearInterval(interval);
+    }, 1000);
+  }
+
   function escapeHtml(str) {
     if (str === null || str === undefined) return "";
     return String(str)
@@ -413,7 +721,14 @@
                   <div class="as-row"><span class="as-muted">Learned</span><span>${
                     under30.learned
                   } / ${under30.totalEntries} ${uLearn.toFixed(2)}%</span></div>
-                </div>
+                
+                  <div class="as-miniChart" id="asDailyAccuracyWrap">
+                    <div class="as-miniChartTitle">Daily accuracy (last 30 days)</div>
+                    <canvas id="asDailyAccuracyCanvas" height="115"></canvas>
+                    <div class="as-miniTooltip" id="asDailyAccuracyTooltip"></div>
+                    <div class="as-miniChartEmpty as-muted" id="asDailyAccuracyEmpty">No daily data yet. Play a few rounds with this script enabled.</div>
+                  </div>
+</div>
 
                 <div class="as-card">
                   <h4>Most played (top 5)</h4>
@@ -813,6 +1128,11 @@
             #statsModal .as-section.as-visible{display:block !important;}
             #statsModal table{width:100%;border-collapse:collapse;font-size:13px;}
             #statsModal thead th{position:sticky;top:0;background:rgba(50,50,50,.98);z-index:2;border-bottom:1px solid rgba(255,255,255,.15);padding:8px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;}
+            #statsModal thead th.as-sortable{padding-right:22px;}
+            #statsModal thead th.as-sortable::after{content:"";position:absolute;right:8px;top:50%;transform:translateY(-50%);opacity:.55;font-size:11px;}
+            #statsModal thead th.as-sortable[data-sort-dir="asc"]::after{content:"▲";}
+            #statsModal thead th.as-sortable[data-sort-dir="desc"]::after{content:"▼";}
+
             #statsModal tbody td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px;vertical-align:top;}
             #statsModal tbody tr:hover{background:rgba(255,255,255,.04);}
             #statsModal .as-clickable{color:#9ad1ff;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
@@ -959,6 +1279,7 @@
     document.body.appendChild(root);
 
     initTableSorting(root);
+    renderDailyAccuracyChart(root);
     initFilteringAndDrilldown(root);
     decorateAcc(root);
   }
@@ -1034,23 +1355,75 @@
       const tbody = table.querySelector("tbody");
       if (!thead || !tbody) return;
 
-      thead.querySelectorAll("th").forEach((th, idx) => {
-        th.title = "Click to sort";
-        let asc = false;
-        th.addEventListener("click", () => {
-          const rows = Array.from(tbody.querySelectorAll("tr"));
-          asc = !asc;
-          rows.sort((a, b) => {
-            const av = (a.children[idx]?.textContent || "").trim();
-            const bv = (b.children[idx]?.textContent || "").trim();
-            const an = parseFloat(av.replace("%", ""));
-            const bn = parseFloat(bv.replace("%", ""));
-            const bothNum = Number.isFinite(an) && Number.isFinite(bn);
-            if (bothNum) return asc ? an - bn : bn - an;
-            return asc ? av.localeCompare(bv) : bv.localeCompare(av);
-          });
-          rows.forEach((r) => tbody.appendChild(r));
+      const headers = Array.from(thead.querySelectorAll("th"));
+      if (!headers.length) return;
+
+      const normText = (s) => (s ?? "").toString().trim();
+      const numOrNull = (s) => {
+        const t = normText(s).replace(/%/g, "").replace(/,/g, "");
+        if (!t) return null;
+        const n = parseFloat(t);
+        return Number.isFinite(n) ? n : null;
+      };
+
+      const sortBy = (idx) => {
+        const curIdx = Number.isFinite(parseInt(table.dataset.sortIdx, 10))
+          ? parseInt(table.dataset.sortIdx, 10)
+          : null;
+
+        // Default: first click = DESC (more useful for numeric stats tables)
+        let dir;
+        if (curIdx === idx) {
+          dir = table.dataset.sortDir === "desc" ? "asc" : "desc";
+        } else {
+          dir = "desc";
+        }
+
+        table.dataset.sortIdx = String(idx);
+        table.dataset.sortDir = dir;
+
+        // Update header indicators
+        headers.forEach((h, i) => {
+          h.classList.add("as-sortable");
+          if (i === idx) h.dataset.sortDir = dir;
+          else delete h.dataset.sortDir;
         });
+
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        const withKey = rows.map((tr, i) => ({ tr, i }));
+
+        const strOpts = { numeric: true, sensitivity: "base" };
+
+        withKey.sort((A, B) => {
+          const aText = normText(A.tr.children[idx]?.textContent);
+          const bText = normText(B.tr.children[idx]?.textContent);
+
+          // Empty values always sink to bottom
+          const aEmpty = !aText;
+          const bEmpty = !bText;
+          if (aEmpty && bEmpty) return A.i - B.i;
+          if (aEmpty) return 1;
+          if (bEmpty) return -1;
+
+          const aNum = numOrNull(aText);
+          const bNum = numOrNull(bText);
+          const bothNum = aNum !== null && bNum !== null;
+
+          let cmp = 0;
+          if (bothNum) cmp = aNum - bNum;
+          else cmp = aText.localeCompare(bText, undefined, strOpts);
+
+          if (cmp === 0) return A.i - B.i;
+          return dir === "asc" ? cmp : -cmp;
+        });
+
+        withKey.forEach(({ tr }) => tbody.appendChild(tr));
+      };
+
+      headers.forEach((th, idx) => {
+        th.classList.add("as-sortable");
+        th.title = "Click to sort (desc / asc)";
+        th.addEventListener("click", () => sortBy(idx));
       });
     });
   }
@@ -1508,6 +1881,7 @@
   // ---------------------------
 
   function boot() {
+    initDailyAccuracyTracking();
     hookLobbyLifecycle();
     // If lobby already exists but setupLobby hasn’t fired yet, try add
     try {
