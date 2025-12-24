@@ -2,7 +2,7 @@
 // @name         AMQ Stats Display
 // @namespace    https://animemusicquiz.com/
 // @version      1.1
-// @description  Display stats (Lobby-only button, AMQ-native placement)
+// @description  Display stats
 // @author       Problem02
 // @match        https://animemusicquiz.com/*
 // @grant        none
@@ -325,17 +325,13 @@
           <span class="as-clickable" data-goto-tab="songStats" data-goto-song="${escapeHtml(
             s.song
           )}" data-goto-artist="${escapeHtml(
-            s.artist
-          )}" data-goto-anime="${escapeHtml(
-            s.anime || ""
-          )}" data-goto-type="${escapeHtml(s.type || "")}">${escapeHtml(
-        s.song
-      )}</span>
+      s.artist
+    )}" data-goto-search="${escapeHtml(s.song)}">${escapeHtml(s.song)}</span>
           <span class="as-muted"> — ${escapeHtml(s.artist)}</span>
         </span>
-        <span class="as-muted">plays: ${s.plays} · ${(s.percentage || 0).toFixed(
-      2
-    )}%</span>
+        <span class="as-muted">plays: ${s.plays} · ${(
+      s.percentage || 0
+    ).toFixed(2)}%</span>
       </li>`;
 
     const typeCard = (label, t) => {
@@ -559,28 +555,30 @@
                         ${stats.songStats
                           .map(
                             (song) => `
-                            <tr data-type="${song.type}" data-song="${escapeHtml(
+                            <tr data-type="${song.type}" data-plays="${
+                              song.plays
+                            }" data-artist="${escapeHtml(
+                              song.artist || ""
+                            )}" data-anime="${escapeHtml(
+                              song.anime || ""
+                            )}" data-song="${escapeHtml(
                               song.song
-                            )}" data-plays="${song.plays}" data-artist="${escapeHtml(
-        song.artist || ""
-      )}" data-anime="${escapeHtml(song.anime || "")}" data-difficulty="${
-        song.difficulty ?? ""
-      }" data-recent="${song.recentPercent ?? ""}">
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                            )}" data-difficulty="${song.difficulty}">
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${escapeHtml(
                                   song.song
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                )}">${escapeHtml(song.song)}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${escapeHtml(
                                   song.artist || ""
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
+                                )}">${escapeHtml(song.artist || "")}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${
                                   song.difficulty
-                                )}</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                }">${formatPercent(song.difficulty)}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${escapeHtml(
                                   song.anime || ""
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                )}">${escapeHtml(song.anime || "")}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${
                                   song.type
-                                }</td>
+                                }">${song.type}</span></td>
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.plays
                                 }</td>
@@ -669,28 +667,30 @@
                         ${stats.songsToLearn
                           .map(
                             (song) => `
-                            <tr data-type="${song.type}" data-song="${escapeHtml(
+                            <tr data-type="${song.type}" data-plays="${
+                              song.plays
+                            }" data-artist="${escapeHtml(
+                              song.artist || ""
+                            )}" data-anime="${escapeHtml(
+                              song.anime || ""
+                            )}" data-song="${escapeHtml(
                               song.song
-                            )}" data-plays="${song.plays}" data-artist="${escapeHtml(
-        song.artist || ""
-      )}" data-anime="${escapeHtml(song.anime || "")}" data-difficulty="${
-        song.difficulty ?? ""
-      }" data-recent="${song.recentPercent ?? ""}">
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                            )}" data-difficulty="${song.difficulty}">
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${escapeHtml(
                                   song.song
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                )}">${escapeHtml(song.song)}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${escapeHtml(
                                   song.artist || ""
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
+                                )}">${escapeHtml(song.artist || "")}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${
                                   song.difficulty
-                                )}</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                }">${formatPercent(song.difficulty)}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${escapeHtml(
                                   song.anime || ""
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                )}">${escapeHtml(song.anime || "")}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${
                                   song.type
-                                }</td>
+                                }">${song.type}</span></td>
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.plays
                                 }</td>
@@ -734,28 +734,30 @@
                         ${stats.songsNeverGot
                           .map(
                             (song) => `
-                            <tr data-type="${song.type}" data-song="${escapeHtml(
+                            <tr data-type="${song.type}" data-plays="${
+                              song.plays
+                            }" data-artist="${escapeHtml(
+                              song.artist || ""
+                            )}" data-anime="${escapeHtml(
+                              song.anime || ""
+                            )}" data-song="${escapeHtml(
                               song.song
-                            )}" data-plays="${song.plays}" data-artist="${escapeHtml(
-        song.artist || ""
-      )}" data-anime="${escapeHtml(song.anime || "")}" data-difficulty="${
-        song.difficulty ?? ""
-      }" data-recent="${song.recentPercent ?? ""}">
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                            )}" data-difficulty="${song.difficulty}">
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${escapeHtml(
                                   song.song
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                )}">${escapeHtml(song.song)}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${escapeHtml(
                                   song.artist || ""
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
+                                )}">${escapeHtml(song.artist || "")}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${
                                   song.difficulty
-                                )}</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                }">${formatPercent(song.difficulty)}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${escapeHtml(
                                   song.anime || ""
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
+                                )}">${escapeHtml(song.anime || "")}</span></td>
+                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${
                                   song.type
-                                }</td>
+                                }">${song.type}</span></td>
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.plays
                                 }</td>
@@ -785,20 +787,27 @@
             #statsModal .as-spacer{flex:1;}
             #statsModal .as-close{background:rgba(255,0,0,.30);border:1px solid rgba(255,0,0,.55);color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;}
             #statsModal .as-controls{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.12);flex-wrap:wrap;}
-            #statsModal .as-controls input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;min-width:240px;}
+            #statsModal .as-controls input,#statsModal .as-controls select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;}
+            #statsModal .as-controls select.as-amq-select{appearance:none;background:rgba(20,20,20,.85);border-color:rgba(255,255,255,.18);padding-right:28px;}
+            #statsModal .as-controls select.as-amq-select:focus{outline:none;border-color:rgba(0,123,255,.65);box-shadow:0 0 0 2px rgba(0,123,255,.20);}
+            #statsModal .as-diffRange{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+            #statsModal .as-diffRange input[type="text"]{width:72px;-moz-appearance:textfield;}
+            #statsModal .as-diffRange input[type="number"]::-webkit-outer-spin-button,
+            #statsModal .as-diffRange input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+
+            #statsModal .as-dualSlider{position:relative;width:170px;height:18px;display:inline-flex;align-items:center;margin:0 4px;;--as-thumb:14px;--as-thumbPad:10px\}
+            #statsModal .as-dualSlider .as-dualTrack{position:absolute;left:var(--as-thumbPad);right:var(--as-thumbPad);top:50%;transform:translateY(-50%);height:4px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.10);z-index:1;}
+            #statsModal .as-dualSlider .as-dualFill{position:absolute;left:var(--as-thumbPad);right:var(--as-thumbPad);top:50%;transform:translateY(-50%);height:4px;border-radius:999px;background:rgba(0,123,255,.55);z-index:2;pointer-events:none;}
+
+            /* Dual-handle slider: two overlapping ranges that look like one bar */
+            #statsModal .as-dualSlider input[type="range"]{position:absolute;left:0;top:0;width:100%;height:18px;margin:0;background:transparent;pointer-events:none;-webkit-appearance:none;appearance:none;z-index:3;}
+            #statsModal .as-dualSlider input[type="range"]::-webkit-slider-runnable-track{height:4px;background:transparent;border:none;}
+            #statsModal .as-dualSlider input[type="range"]::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;height:14px;width:14px;border-radius:50%;background:rgba(255,255,255,.90);border:1px solid rgba(0,0,0,.45);box-shadow:0 0 0 2px rgba(0,0,0,.18);}
+            #statsModal .as-dualSlider input[type="range"]::-moz-range-track{height:4px;background:transparent;border:none;}
+            #statsModal .as-dualSlider input[type="range"]::-moz-range-thumb{pointer-events:auto;height:14px;width:14px;border-radius:50%;background:rgba(255,255,255,.90);border:1px solid rgba(0,0,0,.45);box-shadow:0 0 0 2px rgba(0,0,0,.18);}
+
             #statsModal .as-controls label{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.95;}
             #statsModal .as-controls .as-pill{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:12px;}
-            #statsModal .as-controls .as-range-row{display:flex;gap:10px;flex-wrap:wrap;width:100%;}
-            #statsModal .as-controls .as-range-field{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.95;}
-            #statsModal .as-controls input.as-compact{min-width:120px;width:120px;}
-            #statsModal .as-chip-groups{display:flex;gap:10px;flex-wrap:wrap;width:100%;}
-            #statsModal .as-chip-column{flex:1 1 220px;min-width:200px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px;}
-            #statsModal .as-chip-column h5{margin:0 0 6px;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;}
-            #statsModal .as-chips{display:flex;gap:6px;flex-wrap:wrap;}
-            #statsModal .as-chip{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;cursor:pointer;transition:background .12s,border-color .12s;}
-            #statsModal .as-chip:hover{background:rgba(255,255,255,.09);}
-            #statsModal .as-chip.as-chip-active{background:rgba(0,123,255,.35);border-color:rgba(0,123,255,.7);}
-            #statsModal .as-controls .as-filters-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;}
             #statsModal .as-body{flex:1;overflow:auto;padding:0;}
             #statsModal .as-section{display:none !important;height:100%;}
             #statsModal .as-section.as-visible{display:block !important;}
@@ -807,7 +816,16 @@
             #statsModal tbody td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px;vertical-align:top;}
             #statsModal tbody tr:hover{background:rgba(255,255,255,.04);}
             #statsModal .as-clickable{color:#9ad1ff;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
-            #statsModal .as-muted{opacity:.75;}
+            
+            #statsModal .as-filter-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+            #statsModal .as-filterChips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:18px;}
+            #statsModal .as-chip{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);font-size:12px;cursor:pointer;user-select:none;white-space:nowrap;}
+            #statsModal .as-chip:hover{background:rgba(255,255,255,.09);}
+            #statsModal .as-chip .as-x{opacity:.85;font-weight:700;line-height:1;}
+            #statsModal .as-quickFilters{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+            #statsModal .as-filterable{cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.35);text-underline-offset:3px;}
+            #statsModal .as-filterable:hover{text-decoration-color:rgba(255,255,255,.75);}
+#statsModal .as-muted{opacity:.75;}
         `;
     document.head.appendChild(style);
   }
@@ -817,28 +835,6 @@
 
     const existing = document.getElementById("statsModal");
     if (existing) existing.remove();
-
-    const uniqueSorted = (arr, limit = 100) =>
-      Array.from(new Set(arr.filter(Boolean)))
-        .sort((a, b) => String(a).localeCompare(String(b)))
-        .slice(0, limit);
-    const filterLists = {
-      types,
-      songs: uniqueSorted(stats.songStats.map((s) => s.song), 120),
-      artists: uniqueSorted(stats.artistStats.map((a) => a.artist), 120),
-      anime: uniqueSorted(stats.animeStats.map((a) => a.anime), 120),
-    };
-
-    const renderChips = (field, values) =>
-      values
-        .map(
-          (val) => `
-          <button type="button" class="as-chip" data-filter-field="${field}" data-filter-value="${escapeHtml(
-            val
-          )}">${escapeHtml(val)}</button>
-        `
-        )
-        .join("");
 
     const root = document.createElement("div");
     root.id = "statsModal";
@@ -862,56 +858,37 @@
               </div>
 
               <div class="as-controls" id="asControls">
-                <div class="as-filters-top">
-                  <input id="asSearch" type="text" placeholder="Search (anime / artist / song)..." />
-                  <span class="as-pill" id="asFilterPill">No filters</span>
-                  <button class="as-tab" id="asClearFilters" type="button">Clear</button>
+                <input id="asSearch" type="text" placeholder="Search (anime / artist / song)..." />
+                <div class="as-filter-add" id="asFilterAdd">
+                  <select id="asFilterField" class="as-amq-select" title="Filter field">
+                    <option value="song">Song</option>
+                    <option value="artist">Artist</option>
+                    <option value="anime">Anime</option>
+                  </select>
+                  <input id="asFilterInput" type="text" placeholder="Add filter" />
+                  <button class="as-tab" id="asAddFilter" type="button">Add</button>
                 </div>
-                <div class="as-range-row">
-                  <label class="as-range-field">Difficulty
-                    <input id="asDifficultyMin" class="as-compact" type="number" min="0" max="100" placeholder="Min %" />
-                    <span>–</span>
-                    <input id="asDifficultyMax" class="as-compact" type="number" min="0" max="100" placeholder="Max %" />
-                  </label>
-                  <label class="as-range-field">Recent
-                    <input id="asRecentMin" class="as-compact" type="number" min="0" max="100" placeholder="Min %" />
-                    <span>–</span>
-                    <input id="asRecentMax" class="as-compact" type="number" min="0" max="100" placeholder="Max %" />
-                  </label>
+                <div class="as-quickFilters" id="asQuickFilters">
+                  <span class="as-muted">Type:</span>
+                  <span class="as-chip as-qf" data-qf-key="type" data-qf-value="OP">OP</span>
+                  <span class="as-chip as-qf" data-qf-key="type" data-qf-value="ED">ED</span>
+                  <span class="as-chip as-qf" data-qf-key="type" data-qf-value="IN">IN</span>
                 </div>
-                <div class="as-chip-groups" id="asFilterGroups">
-                  <div class="as-chip-column">
-                    <h5>Type</h5>
-                    <div class="as-chips">${renderChips(
-                      "type",
-                      filterLists.types
-                    )}</div>
+                <div class="as-diffRange" id="asDiffRange" title="Difficulty filter (min/max)">
+                  <span class="as-muted">Difficulty:</span>
+                  <input id="asDiffMin" type="text" inputmode="numeric" pattern="[0-9]*" value="0" />
+                  <div class="as-dualSlider" id="asDiffDual" aria-label="Difficulty range">
+                    <div class="as-dualTrack"></div>
+                    <div class="as-dualFill" id="asDiffFill"></div>
+                    <input id="asDiffMinRange" type="range" min="0" max="100" step="1" value="0" />
+                    <input id="asDiffMaxRange" type="range" min="0" max="100" step="1" value="100" />
                   </div>
-                  <div class="as-chip-column">
-                    <h5>Song</h5>
-                    <div class="as-chips">${renderChips(
-                      "song",
-                      filterLists.songs
-                    )}</div>
-                  </div>
-                  <div class="as-chip-column">
-                    <h5>Artist</h5>
-                    <div class="as-chips">${renderChips(
-                      "artist",
-                      filterLists.artists
-                    )}</div>
-                  </div>
-                  <div class="as-chip-column">
-                    <h5>Anime</h5>
-                    <div class="as-chips">${renderChips(
-                      "anime",
-                      filterLists.anime
-                    )}</div>
-                  </div>
+                  <input id="asDiffMax" type="text" inputmode="numeric" pattern="[0-9]*" value="100" />
                 </div>
+                <div class="as-filterChips" id="asFilterChips"></div>
+                <button class="as-tab" id="asClearFilters" type="button">Clear</button>
               </div>
-
-              <div class="as-body" id="asBody">
+<div class="as-body" id="asBody">
                 ${formatOverallStats(stats)}
                 ${formatAnimeStats(stats)}
                 ${formatArtistStats(stats)}
@@ -956,14 +933,27 @@
       const tabId = t.dataset.gotoTab;
       const tabBtn = root.querySelector(`.as-tab[data-tab="${tabId}"]`);
       if (tabBtn) tabBtn.click(); // triggers filtering apply()
-      const detail = {};
-      if ("gotoSong" in t.dataset) detail.song = t.dataset.gotoSong || "";
-      if ("gotoArtist" in t.dataset) detail.artist = t.dataset.gotoArtist || "";
-      if ("gotoAnime" in t.dataset) detail.anime = t.dataset.gotoAnime || "";
-      if ("gotoType" in t.dataset) detail.type = t.dataset.gotoType || "";
-      if ("gotoSearch" in t.dataset) detail.search = t.dataset.gotoSearch || "";
+      const q = t.dataset.gotoSearch || "";
+      const song = t.dataset.gotoSong || "";
+      const artist = t.dataset.gotoArtist || "";
 
-      root.dispatchEvent(new CustomEvent("as-set-filters", { detail }));
+      // If we have structured song/artist, apply a robust filter (song name + artist)
+      if (song || artist) {
+        root.dispatchEvent(
+          new CustomEvent("as-set-filters", {
+            detail: {
+              search: song || q,
+              artist: artist || "",
+            },
+          })
+        );
+      } else if (q) {
+        const search = root.querySelector("#asSearch");
+        if (search) {
+          search.value = q;
+          search.dispatchEvent(new Event("input"));
+        }
+      }
     });
 
     document.body.appendChild(root);
@@ -981,10 +971,36 @@
       .querySelectorAll(".as-section")
       .forEach((sec) => sec.classList.toggle("as-visible", sec.id === tabId));
 
-    // Hide the search/filter bar on the Overall tab to reduce clutter
+    // Controls visibility rules:
+    // - Overall: hide everything (no controls)
+    // - Anime: search only (filters removed here)
+    // - Other tabs: show search + filters; quick type filters only on song-ish tabs
     const controls = root.querySelector("#asControls");
-    if (controls)
-      controls.style.display = tabId === "overallStats" ? "none" : "flex";
+    const filterAdd = root.querySelector("#asFilterAdd");
+    const chips = root.querySelector("#asFilterChips");
+    const quick = root.querySelector("#asQuickFilters");
+    const clearBtn = root.querySelector("#asClearFilters");
+    const diffRange = root.querySelector("#asDiffRange");
+    const search = root.querySelector("#asSearch");
+
+    const isOverall = tabId === "overallStats";
+    const isAnime = tabId === "animeStats";
+    const isSongish = [
+      "songStats",
+      "songsToLearnStats",
+      "songsNeverGotStats",
+    ].includes(tabId);
+
+    if (controls) controls.style.display = isOverall ? "none" : "flex";
+    if (search) search.style.display = "inline-flex";
+
+    const showFilters = !isOverall && !isAnime;
+    if (filterAdd) filterAdd.style.display = showFilters ? "flex" : "none";
+    if (chips) chips.style.display = showFilters ? "flex" : "none";
+    if (clearBtn) clearBtn.style.display = showFilters ? "inline-flex" : "none";
+    if (diffRange) diffRange.style.display = showFilters ? "flex" : "none";
+
+    if (quick) quick.style.display = showFilters && isSongish ? "flex" : "none";
   }
   function decorateAcc(root) {
     // Adds accuracy badges. Safe to call multiple times.
@@ -1042,138 +1058,225 @@
   function initFilteringAndDrilldown(root) {
     const state = {
       search: "",
-      type: "",
-      anime: "",
-      artist: "",
-      song: "",
-      difficultyMin: "",
-      difficultyMax: "",
-      recentMin: "",
-      recentMax: "",
+      filters: {
+        song: [],
+        artist: [],
+        anime: [],
+        type: [],
+      },
+      diff: { min: 0, max: 100 },
     };
 
-    const pill = root.querySelector("#asFilterPill");
     const search = root.querySelector("#asSearch");
+    const fieldSel = root.querySelector("#asFilterField");
+    const input = root.querySelector("#asFilterInput");
+    const addBtn = root.querySelector("#asAddFilter");
+    const chips = root.querySelector("#asFilterChips");
     const clear = root.querySelector("#asClearFilters");
-    const difficultyMin = root.querySelector("#asDifficultyMin");
-    const difficultyMax = root.querySelector("#asDifficultyMax");
-    const recentMin = root.querySelector("#asRecentMin");
-    const recentMax = root.querySelector("#asRecentMax");
-    const chipGroups = root.querySelector("#asFilterGroups");
 
-    const syncChips = () => {
-      root.querySelectorAll(".as-chip").forEach((chip) => {
-        const field = chip.getAttribute("data-filter-field");
-        const value = (chip.getAttribute("data-filter-value") || "").toLowerCase();
-        if (!field) return;
-        const isActive = (state[field] || "").toLowerCase() === value;
-        chip.classList.toggle("as-chip-active", isActive);
-      });
+    const diffMin = root.querySelector("#asDiffMin");
+    const diffMax = root.querySelector("#asDiffMax");
+    const diffMinRange = root.querySelector("#asDiffMinRange");
+    const diffMaxRange = root.querySelector("#asDiffMaxRange");
+    const diffFill = root.querySelector("#asDiffFill");
+    const diffDual = root.querySelector("#asDiffDual");
+
+    const norm = (v) => String(v ?? "").trim();
+    const lc = (v) => norm(v).toLowerCase();
+
+    const clamp01 = (n) => {
+      if (n === null || n === undefined) return null;
+      const s = String(n).trim();
+      if (s === "") return null;
+      const x = Number(s);
+      if (!Number.isFinite(x)) return null;
+      return Math.max(0, Math.min(100, x));
     };
 
-    const applyAndSync = () => {
+    const syncDifficultyUI = () => {
+      if (!diffMin || !diffMax || !diffMinRange || !diffMaxRange) return;
+      diffMin.value = String(state.diff.min);
+      diffMax.value = String(state.diff.max);
+      diffMinRange.value = String(state.diff.min);
+      diffMaxRange.value = String(state.diff.max);
+
+      // Keep thumbs usable when they get close
+      try {
+        diffMinRange.style.zIndex = Number(state.diff.min) > 50 ? "6" : "4";
+        diffMaxRange.style.zIndex = "5";
+      } catch (e) {}
+      // Update the highlighted segment on the shared track
+      if (diffFill && diffDual) {
+        // Firefox and Chromium lay out range thumbs slightly differently. To keep the highlight
+        // from ever peeking past the visible thumbs (especially at 0/100), we draw the fill
+        // inside an inner "usable" track that is inset from the edges by a thumb padding.
+        const cs = getComputedStyle(diffDual);
+        const thumbPx = parseFloat(cs.getPropertyValue("--as-thumb")) || 14;
+        const padPx =
+          parseFloat(cs.getPropertyValue("--as-thumbPad")) || thumbPx / 2;
+
+        const W = diffDual.clientWidth || 0;
+        const innerW = Math.max(0, W - 2 * padPx);
+
+        const minPos = padPx + (state.diff.min / 100) * innerW;
+        const maxPos = padPx + (state.diff.max / 100) * innerW;
+
+        const left = Math.max(
+          padPx,
+          Math.min(W - padPx, Math.min(minPos, maxPos))
+        );
+        const rightPos = Math.max(
+          padPx,
+          Math.min(W - padPx, Math.max(minPos, maxPos))
+        );
+
+        diffFill.style.left = `${left}px`;
+        diffFill.style.right = `${Math.max(0, W - rightPos)}px`;
+      }
+    };
+
+    const setDifficulty = (minV, maxV, source = "both", doApply = true) => {
+      let mn = clamp01(minV);
+      let mx = clamp01(maxV);
+
+      if (source === "min") {
+        if (mn === null) mn = state.diff.min;
+        mx = state.diff.max;
+        if (mn > mx) mn = mx;
+      } else if (source === "max") {
+        if (mx === null) mx = state.diff.max;
+        mn = state.diff.min;
+        if (mx < mn) mx = mn;
+      } else {
+        if (mn === null) mn = state.diff.min;
+        if (mx === null) mx = state.diff.max;
+        if (mn > mx) [mn, mx] = [mx, mn];
+      }
+
+      state.diff.min = mn;
+      state.diff.max = mx;
+      syncDifficultyUI();
+      if (doApply) apply();
+    };
+
+    const hasFilter = (key, value) =>
+      state.filters[key].some((x) => lc(x) === lc(value));
+
+    const addFilter = (key, rawValue, doApply = true) => {
+      const k = norm(key);
+      if (!k || !(k in state.filters)) return;
+
+      let v = norm(rawValue);
+      if (!v) return;
+
+      if (k === "type") v = v.toUpperCase();
+
+      if (!hasFilter(k, v)) state.filters[k].push(v);
+      if (doApply) apply();
+    };
+
+    const removeFilter = (key, value, doApply = true) => {
+      const k = norm(key);
+      const v = norm(value);
+      if (!k || !(k in state.filters) || !v) return;
+      state.filters[k] = state.filters[k].filter((x) => lc(x) !== lc(v));
+      if (doApply) apply();
+    };
+
+    const clearAll = () => {
+      state.search = "";
+      Object.keys(state.filters).forEach((k) => (state.filters[k] = []));
+      state.diff.min = 0;
+      state.diff.max = 100;
+      if (search) search.value = "";
+      if (input) input.value = "";
+      syncDifficultyUI();
       apply();
-      syncChips();
     };
 
-    const setChipState = (field, value, { toggle = false, applyNow = true } = {}) => {
-      const normalizedValue = (value || "").toLowerCase();
-      const normalizedCurrent = (state[field] || "").toLowerCase();
-      const nextValue = toggle && normalizedCurrent === normalizedValue ? "" : value;
-      const changed = state[field] !== nextValue;
-      state[field] = nextValue;
-      if (applyNow && (changed || toggle)) applyAndSync();
-      return changed;
+    const renderChips = () => {
+      if (!chips) return;
+      const entries = [];
+      Object.keys(state.filters).forEach((k) => {
+        state.filters[k].forEach((v) => entries.push({ k, v }));
+      });
+
+      if (!entries.length) {
+        chips.innerHTML = '<span class="as-muted">No filters</span>';
+        return;
+      }
+
+      const niceKey = (k) =>
+        k === "song"
+          ? "Song"
+          : k === "artist"
+          ? "Artist"
+          : k === "anime"
+          ? "Anime"
+          : k === "type"
+          ? "Type"
+          : k;
+
+      chips.innerHTML = entries
+        .map(({ k, v }) => {
+          const show = escapeHtml(v);
+          return `
+            <span class="as-chip as-chip-active" data-chip-key="${escapeHtml(
+              k
+            )}" data-chip-value="${escapeHtml(v)}" title="Click to remove">
+              ${niceKey(k)}: ${show} <span class="as-x">×</span>
+            </span>
+          `;
+        })
+        .join("");
+    };
+
+    const matchAny = (hay, filters) => {
+      if (!filters || !filters.length) return true;
+      const h = lc(hay);
+      return filters.some((f) => h.includes(lc(f)));
     };
 
     const apply = () => {
       const activeId = root.querySelector(".as-section.as-visible")?.id;
-      const q = state.search.toLowerCase();
-      const diffMin = Number.isFinite(parseFloat(state.difficultyMin))
-        ? parseFloat(state.difficultyMin)
-        : null;
-      const diffMax = Number.isFinite(parseFloat(state.difficultyMax))
-        ? parseFloat(state.difficultyMax)
-        : null;
-      const recentMinVal = Number.isFinite(parseFloat(state.recentMin))
-        ? parseFloat(state.recentMin)
-        : null;
-      const recentMaxVal = Number.isFinite(parseFloat(state.recentMax))
-        ? parseFloat(state.recentMax)
-        : null;
+      const q = lc(state.search);
 
-      const parts = [];
-      if (state.search) parts.push(`Search: "${state.search}"`);
-      if (state.song) parts.push(`Song: ${state.song}`);
-      if (state.anime) parts.push(`Anime: ${state.anime}`);
-      if (state.artist) parts.push(`Artist: ${state.artist}`);
-      if (state.type) parts.push(`Type: ${state.type}`);
-      if (diffMin !== null || diffMax !== null)
-        parts.push(
-          `Difficulty: ${diffMin !== null ? diffMin : 0}–${
-            diffMax !== null ? diffMax : 100
-          }%`
-        );
-      if (recentMinVal !== null || recentMaxVal !== null)
-        parts.push(
-          `Recent: ${recentMinVal !== null ? recentMinVal : 0}–${
-            recentMaxVal !== null ? recentMaxVal : 100
-          }%`
-        );
-      if (pill)
-        pill.textContent = parts.length ? parts.join(" · ") : "No filters";
+      renderChips();
 
       root.querySelectorAll(".as-section table tbody tr").forEach((tr) => {
-        let ok = true;
-
         const section = tr.closest(".as-section");
         if (!section || section.id !== activeId) return;
 
-        const text = tr.textContent.toLowerCase();
-        if (q && !text.includes(q)) ok = false;
+        let ok = true;
 
-        const isSongish = ["songStats", "songsToLearnStats", "songsNeverGotStats"].includes(
-          activeId
-        );
+        const txt = (tr.textContent || "").toLowerCase();
+        if (q && !txt.includes(q)) ok = false;
+
+        const isSongish = [
+          "songStats",
+          "songsToLearnStats",
+          "songsNeverGotStats",
+        ].includes(activeId);
+
         if (ok && isSongish) {
-          const rowType = tr.getAttribute("data-type") || "";
-          const rowAnime = (tr.getAttribute("data-anime") || "").toLowerCase();
-          const rowArtist = (tr.getAttribute("data-artist") || "").toLowerCase();
-          const rowSong = (tr.getAttribute("data-song") || "").toLowerCase();
-          const rowDiff = parseFloat(tr.getAttribute("data-difficulty"));
-          const rowRecent = parseFloat(tr.getAttribute("data-recent"));
+          const rowSong = tr.getAttribute("data-song") || "";
+          const rowArtist = tr.getAttribute("data-artist") || "";
+          const rowAnime = tr.getAttribute("data-anime") || "";
+          const rowType = (tr.getAttribute("data-type") || "").toUpperCase();
+          const rowDiff = Number(tr.getAttribute("data-difficulty"));
 
-          if (state.type && rowType.toLowerCase() !== state.type.toLowerCase())
-            ok = false;
-          if (ok && state.song && rowSong !== state.song.toLowerCase()) ok = false;
-          if (
-            ok &&
-            state.anime &&
-            !rowAnime.includes(state.anime.toLowerCase())
-          )
-            ok = false;
-          if (
-            ok &&
-            state.artist &&
-            !rowArtist.includes(state.artist.toLowerCase())
-          )
-            ok = false;
-          if (ok && diffMin !== null && (!Number.isFinite(rowDiff) || rowDiff < diffMin))
-            ok = false;
-          if (ok && diffMax !== null && (!Number.isFinite(rowDiff) || rowDiff > diffMax))
-            ok = false;
-          if (
-            ok &&
-            recentMinVal !== null &&
-            (!Number.isFinite(rowRecent) || rowRecent < recentMinVal)
-          )
-            ok = false;
-          if (
-            ok &&
-            recentMaxVal !== null &&
-            (!Number.isFinite(rowRecent) || rowRecent > recentMaxVal)
-          )
-            ok = false;
+          if (!matchAny(rowSong, state.filters.song)) ok = false;
+          if (ok && !matchAny(rowArtist, state.filters.artist)) ok = false;
+          if (ok && !matchAny(rowAnime, state.filters.anime)) ok = false;
+
+          if (ok && state.filters.type.length) {
+            ok = state.filters.type.some((t) => t.toUpperCase() === rowType);
+          }
+
+          if (ok && Number.isFinite(rowDiff)) {
+            if (rowDiff < state.diff.min || rowDiff > state.diff.max)
+              ok = false;
+          }
         }
 
         tr.style.display = ok ? "" : "none";
@@ -1183,19 +1286,41 @@
     // Allow other UI elements (e.g., Overall tab lists) to set filters robustly
     root.addEventListener("as-set-filters", (ev) => {
       const d = (ev && ev.detail) || {};
-      let dirty = false;
-      ["search", "type", "anime", "artist", "song"].forEach((key) => {
-        if (key in d) {
-          if (key === "search") {
-            state.search = String(d[key] || "");
-            if (search) search.value = state.search;
-            dirty = true;
-          } else {
-            dirty = setChipState(key, String(d[key] || ""), { applyNow: false }) || dirty;
-          }
+
+      if ("search" in d) {
+        state.search = String(d.search || "");
+        if (search) search.value = state.search;
+      }
+
+      // Replace-by-default semantics for these fields
+      const keys = ["song", "artist", "anime", "type"];
+      keys.forEach((k) => {
+        if (k in d) {
+          state.filters[k] = [];
+          const v = d[k];
+          if (Array.isArray(v)) v.forEach((x) => addFilter(k, x, false));
+          else addFilter(k, v, false);
         }
       });
-      if (dirty) applyAndSync();
+
+      if ("diffMin" in d || "diffMax" in d || "difficulty" in d) {
+        let mn = state.diff.min;
+        let mx = state.diff.max;
+        if ("diffMin" in d) mn = d.diffMin;
+        if ("diffMax" in d) mx = d.diffMax;
+
+        // Back-compat: allow {difficulty: 67} to pin to a single value
+        if ("difficulty" in d && !("diffMin" in d) && !("diffMax" in d)) {
+          const v = clamp01(String(d.difficulty).replace(/%/g, ""));
+          if (v !== null) {
+            mn = v;
+            mx = v;
+          }
+        }
+        setDifficulty(mn, mx, "both", false);
+      }
+
+      apply();
     });
 
     root.querySelectorAll(".as-tab[data-tab]").forEach((btn) => {
@@ -1205,95 +1330,106 @@
       });
     });
 
-    if (search)
+    if (search) {
       search.addEventListener("input", () => {
         state.search = search.value.trim();
-        applyAndSync();
-      });
-
-    const handleRangeInput = (inputEl, key) => {
-      if (!inputEl) return;
-      inputEl.addEventListener("input", () => {
-        state[key] = inputEl.value.trim();
         apply();
-      });
-    };
-
-    handleRangeInput(difficultyMin, "difficultyMin");
-    handleRangeInput(difficultyMax, "difficultyMax");
-    handleRangeInput(recentMin, "recentMin");
-    handleRangeInput(recentMax, "recentMax");
-
-    if (chipGroups) {
-      chipGroups.addEventListener("click", (e) => {
-        const chip = e.target.closest(".as-chip");
-        if (!chip) return;
-        const field = chip.getAttribute("data-filter-field");
-        const value = chip.getAttribute("data-filter-value") || "";
-        if (!field) return;
-        setChipState(field, value, { toggle: true });
       });
     }
 
-    if (clear)
-      clear.addEventListener("click", () => {
-        state.search = "";
-        state.type = "";
-        state.anime = "";
-        state.artist = "";
-        state.song = "";
-        state.difficultyMin = "";
-        state.difficultyMax = "";
-        state.recentMin = "";
-        state.recentMax = "";
-        ["type", "anime", "artist", "song"].forEach((field) => {
-          setChipState(field, "", { applyNow: false });
-        });
-        if (search) search.value = "";
-        if (difficultyMin) difficultyMin.value = "";
-        if (difficultyMax) difficultyMax.value = "";
-        if (recentMin) recentMin.value = "";
-        if (recentMax) recentMax.value = "";
-        applyAndSync();
+    // Difficulty slider / inputs (min/max)
+    if (diffMinRange) {
+      diffMinRange.addEventListener("input", () => {
+        setDifficulty(diffMinRange.value, null, "min");
       });
+    }
+    if (diffMaxRange) {
+      diffMaxRange.addEventListener("input", () => {
+        setDifficulty(null, diffMaxRange.value, "max");
+      });
+    }
+    if (diffMin) {
+      diffMin.addEventListener("input", () => {
+        setDifficulty(diffMin.value, null, "min");
+      });
+    }
+    if (diffMax) {
+      diffMax.addEventListener("input", () => {
+        setDifficulty(null, diffMax.value, "max");
+      });
+    }
 
+    const doAddFromInput = () => {
+      if (!fieldSel || !input) return;
+      const k = fieldSel.value;
+      const v = input.value;
+      addFilter(k, v);
+      input.value = "";
+      input.focus();
+    };
+
+    if (addBtn) addBtn.addEventListener("click", doAddFromInput);
+    if (input) {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          doAddFromInput();
+        }
+      });
+    }
+
+    if (clear) clear.addEventListener("click", clearAll);
+
+    // Click-to-add filters (table cells, quick filters) + click-to-remove chips
+    root.addEventListener("click", (e) => {
+      const t = e.target;
+
+      const chip = t.closest?.("[data-chip-key][data-chip-value]");
+      if (chip && root.contains(chip)) {
+        removeFilter(chip.dataset.chipKey, chip.dataset.chipValue);
+        return;
+      }
+
+      const qf = t.closest?.("[data-qf-key][data-qf-value]");
+      if (qf && root.contains(qf)) {
+        addFilter(qf.dataset.qfKey, qf.dataset.qfValue);
+        return;
+      }
+
+      const f = t.closest?.("[data-filter-key][data-filter-value]");
+      if (f && root.contains(f)) {
+        if (f.dataset.filterKey === "difficulty") {
+          const v = clamp01(String(f.dataset.filterValue).replace(/%/g, ""));
+          if (v !== null) setDifficulty(v, v);
+        } else {
+          addFilter(f.dataset.filterKey, f.dataset.filterValue);
+        }
+      }
+    });
+
+    // Drilldown from Overall tab elements
     root.querySelectorAll("[data-drill-anime]").forEach((el) => {
       el.classList.add("as-clickable");
       el.addEventListener("click", () => {
+        addFilter("anime", el.getAttribute("data-drill-anime") || "");
         setActiveTab(root, "songStats");
-        root.dispatchEvent(
-          new CustomEvent("as-set-filters", {
-            detail: {
-              anime: el.getAttribute("data-drill-anime") || "",
-              artist: "",
-              song: "",
-            },
-          })
-        );
+        apply();
       });
     });
 
     root.querySelectorAll("[data-drill-artist]").forEach((el) => {
       el.classList.add("as-clickable");
       el.addEventListener("click", () => {
+        addFilter("artist", el.getAttribute("data-drill-artist") || "");
         setActiveTab(root, "songStats");
-        root.dispatchEvent(
-          new CustomEvent("as-set-filters", {
-            detail: {
-              artist: el.getAttribute("data-drill-artist") || "",
-              anime: "",
-              song: "",
-            },
-          })
-        );
+        apply();
       });
     });
 
     setActiveTab(root, "overallStats");
+    syncDifficultyUI();
     apply();
-    syncChips();
   }
-
   // ---------------------------
   // AMQ-native Lobby button logic
   // (modeled after training mode scripts)
