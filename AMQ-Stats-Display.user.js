@@ -325,13 +325,17 @@
           <span class="as-clickable" data-goto-tab="songStats" data-goto-song="${escapeHtml(
             s.song
           )}" data-goto-artist="${escapeHtml(
-      s.artist
-    )}" data-goto-search="${escapeHtml(s.song)}">${escapeHtml(s.song)}</span>
+            s.artist
+          )}" data-goto-anime="${escapeHtml(
+            s.anime || ""
+          )}" data-goto-type="${escapeHtml(s.type || "")}">${escapeHtml(
+        s.song
+      )}</span>
           <span class="as-muted"> — ${escapeHtml(s.artist)}</span>
         </span>
-        <span class="as-muted">plays: ${s.plays} · ${(
-      s.percentage || 0
-    ).toFixed(2)}%</span>
+        <span class="as-muted">plays: ${s.plays} · ${(s.percentage || 0).toFixed(
+      2
+    )}%</span>
       </li>`;
 
     const typeCard = (label, t) => {
@@ -555,11 +559,11 @@
                         ${stats.songStats
                           .map(
                             (song) => `
-                            <tr data-type="${song.type}" data-plays="${
-                              song.plays
-                            }" data-artist="${song.artist || ""}" data-anime="${
-                              song.anime || ""
-                            }">
+                            <tr data-type="${song.type}" data-song="${escapeHtml(
+                              song.song
+                            )}" data-plays="${song.plays}" data-artist="${escapeHtml(
+        song.artist || ""
+      )}" data-anime="${escapeHtml(song.anime || "")}">
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.song
                                 }</td>
@@ -663,11 +667,11 @@
                         ${stats.songsToLearn
                           .map(
                             (song) => `
-                            <tr data-type="${song.type}" data-plays="${
-                              song.plays
-                            }" data-artist="${song.artist || ""}" data-anime="${
-                              song.anime || ""
-                            }">
+                            <tr data-type="${song.type}" data-song="${escapeHtml(
+                              song.song
+                            )}" data-plays="${song.plays}" data-artist="${escapeHtml(
+        song.artist || ""
+      )}" data-anime="${escapeHtml(song.anime || "")}">
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.song
                                 }</td>
@@ -726,11 +730,11 @@
                         ${stats.songsNeverGot
                           .map(
                             (song) => `
-                            <tr data-type="${song.type}" data-plays="${
-                              song.plays
-                            }" data-artist="${song.artist || ""}" data-anime="${
-                              song.anime || ""
-                            }">
+                            <tr data-type="${song.type}" data-song="${escapeHtml(
+                              song.song
+                            )}" data-plays="${song.plays}" data-artist="${escapeHtml(
+        song.artist || ""
+      )}" data-anime="${escapeHtml(song.anime || "")}">
                                 <td style="border: 1px solid #FFFFFF; padding: 8px;">${
                                   song.song
                                 }</td>
@@ -775,9 +779,17 @@
             #statsModal .as-spacer{flex:1;}
             #statsModal .as-close{background:rgba(255,0,0,.30);border:1px solid rgba(255,0,0,.55);color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;}
             #statsModal .as-controls{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.12);flex-wrap:wrap;}
-            #statsModal .as-controls input,#statsModal .as-controls select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;}
+            #statsModal .as-controls input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;min-width:240px;}
             #statsModal .as-controls label{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.95;}
             #statsModal .as-controls .as-pill{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:12px;}
+            #statsModal .as-chip-groups{display:flex;gap:10px;flex-wrap:wrap;width:100%;}
+            #statsModal .as-chip-column{flex:1 1 220px;min-width:200px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px;}
+            #statsModal .as-chip-column h5{margin:0 0 6px;font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;}
+            #statsModal .as-chips{display:flex;gap:6px;flex-wrap:wrap;}
+            #statsModal .as-chip{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;padding:4px 8px;border-radius:12px;font-size:12px;cursor:pointer;transition:background .12s,border-color .12s;}
+            #statsModal .as-chip:hover{background:rgba(255,255,255,.09);}
+            #statsModal .as-chip.as-chip-active{background:rgba(0,123,255,.35);border-color:rgba(0,123,255,.7);}
+            #statsModal .as-controls .as-filters-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;}
             #statsModal .as-body{flex:1;overflow:auto;padding:0;}
             #statsModal .as-section{display:none !important;height:100%;}
             #statsModal .as-section.as-visible{display:block !important;}
@@ -796,6 +808,28 @@
 
     const existing = document.getElementById("statsModal");
     if (existing) existing.remove();
+
+    const uniqueSorted = (arr, limit = 100) =>
+      Array.from(new Set(arr.filter(Boolean)))
+        .sort((a, b) => String(a).localeCompare(String(b)))
+        .slice(0, limit);
+    const filterLists = {
+      types,
+      songs: uniqueSorted(stats.songStats.map((s) => s.song), 120),
+      artists: uniqueSorted(stats.artistStats.map((a) => a.artist), 120),
+      anime: uniqueSorted(stats.animeStats.map((a) => a.anime), 120),
+    };
+
+    const renderChips = (field, values) =>
+      values
+        .map(
+          (val) => `
+          <button type="button" class="as-chip" data-filter-field="${field}" data-filter-value="${escapeHtml(
+            val
+          )}">${escapeHtml(val)}</button>
+        `
+        )
+        .join("");
 
     const root = document.createElement("div");
     root.id = "statsModal";
@@ -819,15 +853,41 @@
               </div>
 
               <div class="as-controls" id="asControls">
-                <input id="asSearch" type="text" placeholder="Search (anime / artist / song)..." />
-                <select id="asType">
-                  <option value="ALL">All Types</option>
-                  <option value="OP">OP</option>
-                  <option value="ED">ED</option>
-                  <option value="IN">IN</option>
-                </select>
-                <span class="as-pill" id="asFilterPill">No filters</span>
-<button class="as-tab" id="asClearFilters" type="button">Clear</button>
+                <div class="as-filters-top">
+                  <input id="asSearch" type="text" placeholder="Search (anime / artist / song)..." />
+                  <span class="as-pill" id="asFilterPill">No filters</span>
+                  <button class="as-tab" id="asClearFilters" type="button">Clear</button>
+                </div>
+                <div class="as-chip-groups" id="asFilterGroups">
+                  <div class="as-chip-column">
+                    <h5>Type</h5>
+                    <div class="as-chips">${renderChips(
+                      "type",
+                      filterLists.types
+                    )}</div>
+                  </div>
+                  <div class="as-chip-column">
+                    <h5>Song</h5>
+                    <div class="as-chips">${renderChips(
+                      "song",
+                      filterLists.songs
+                    )}</div>
+                  </div>
+                  <div class="as-chip-column">
+                    <h5>Artist</h5>
+                    <div class="as-chips">${renderChips(
+                      "artist",
+                      filterLists.artists
+                    )}</div>
+                  </div>
+                  <div class="as-chip-column">
+                    <h5>Anime</h5>
+                    <div class="as-chips">${renderChips(
+                      "anime",
+                      filterLists.anime
+                    )}</div>
+                  </div>
+                </div>
               </div>
 
               <div class="as-body" id="asBody">
@@ -875,27 +935,14 @@
       const tabId = t.dataset.gotoTab;
       const tabBtn = root.querySelector(`.as-tab[data-tab="${tabId}"]`);
       if (tabBtn) tabBtn.click(); // triggers filtering apply()
-      const q = t.dataset.gotoSearch || "";
-      const song = t.dataset.gotoSong || "";
-      const artist = t.dataset.gotoArtist || "";
+      const detail = {};
+      if ("gotoSong" in t.dataset) detail.song = t.dataset.gotoSong || "";
+      if ("gotoArtist" in t.dataset) detail.artist = t.dataset.gotoArtist || "";
+      if ("gotoAnime" in t.dataset) detail.anime = t.dataset.gotoAnime || "";
+      if ("gotoType" in t.dataset) detail.type = t.dataset.gotoType || "";
+      if ("gotoSearch" in t.dataset) detail.search = t.dataset.gotoSearch || "";
 
-      // If we have structured song/artist, apply a robust filter (song name + artist)
-      if (song || artist) {
-        root.dispatchEvent(
-          new CustomEvent("as-set-filters", {
-            detail: {
-              search: song || q,
-              artist: artist || "",
-            },
-          })
-        );
-      } else if (q) {
-        const search = root.querySelector("#asSearch");
-        if (search) {
-          search.value = q;
-          search.dispatchEvent(new Event("input"));
-        }
-      }
+      root.dispatchEvent(new CustomEvent("as-set-filters", { detail }));
     });
 
     document.body.appendChild(root);
@@ -915,17 +962,16 @@
 
     // Hide the search/filter bar on the Overall tab to reduce clutter
     const controls = root.querySelector("#asControls");
-    if (controls)
-      controls.style.display = tabId === "overallStats" ? "none" : "flex";
-
-    // Type selector is only relevant for song-related tabs
-    const typeSel = root.querySelector("#asType");
     const isSongish = [
       "songStats",
       "songsToLearnStats",
       "songsNeverGotStats",
     ].includes(tabId);
-    if (typeSel) typeSel.style.display = isSongish ? "" : "none";
+    if (controls)
+      controls.style.display = tabId === "overallStats" ? "none" : "flex";
+
+    const chipGroups = root.querySelector("#asFilterGroups");
+    if (chipGroups) chipGroups.style.display = isSongish ? "" : "none";
   }
   function decorateAcc(root) {
     // Adds accuracy badges. Safe to call multiple times.
@@ -983,31 +1029,26 @@
   function initFilteringAndDrilldown(root) {
     const state = {
       search: "",
-      type: "ALL",
+      type: "",
       anime: "",
       artist: "",
+      song: "",
     };
 
     const pill = root.querySelector("#asFilterPill");
     const search = root.querySelector("#asSearch");
-    const type = root.querySelector("#asType");
     const clear = root.querySelector("#asClearFilters");
+    const chipGroups = root.querySelector("#asFilterGroups");
 
-    // Allow other UI elements (e.g., Overall tab lists) to set filters robustly
-    root.addEventListener("as-set-filters", (ev) => {
-      const d = (ev && ev.detail) || {};
-      if ("search" in d) {
-        state.search = String(d.search || "");
-        if (search) search.value = state.search;
-      }
-      if ("type" in d) {
-        state.type = String(d.type || "ALL");
-        if (type) type.value = state.type;
-      }
-      if ("anime" in d) state.anime = String(d.anime || "");
-      if ("artist" in d) state.artist = String(d.artist || "");
-      apply();
-    });
+    const syncChips = () => {
+      root.querySelectorAll(".as-chip").forEach((chip) => {
+        const field = chip.getAttribute("data-filter-field");
+        const value = (chip.getAttribute("data-filter-value") || "").toLowerCase();
+        if (!field) return;
+        const isActive = (state[field] || "").toLowerCase() === value;
+        chip.classList.toggle("as-chip-active", isActive);
+      });
+    };
 
     const apply = () => {
       const activeId = root.querySelector(".as-section.as-visible")?.id;
@@ -1015,10 +1056,12 @@
 
       const parts = [];
       if (state.search) parts.push(`Search: "${state.search}"`);
+      if (state.song) parts.push(`Song: ${state.song}`);
       if (state.anime) parts.push(`Anime: ${state.anime}`);
       if (state.artist) parts.push(`Artist: ${state.artist}`);
-      if (state.type !== "ALL") parts.push(`Type: ${state.type}`);
-      pill.textContent = parts.length ? parts.join(" · ") : "No filters";
+      if (state.type) parts.push(`Type: ${state.type}`);
+      if (pill)
+        pill.textContent = parts.length ? parts.join(" · ") : "No filters";
 
       root.querySelectorAll(".as-section table tbody tr").forEach((tr) => {
         let ok = true;
@@ -1029,20 +1072,18 @@
         const text = tr.textContent.toLowerCase();
         if (q && !text.includes(q)) ok = false;
 
-        if (
-          ok &&
-          ["songStats", "songsToLearnStats", "songsNeverGotStats"].includes(
-            activeId
-          )
-        ) {
+        const isSongish = ["songStats", "songsToLearnStats", "songsNeverGotStats"].includes(
+          activeId
+        );
+        if (ok && isSongish) {
           const rowType = tr.getAttribute("data-type") || "";
-          const plays = Number(tr.getAttribute("data-plays") || "0");
           const rowAnime = (tr.getAttribute("data-anime") || "").toLowerCase();
-          const rowArtist = (
-            tr.getAttribute("data-artist") || ""
-          ).toLowerCase();
+          const rowArtist = (tr.getAttribute("data-artist") || "").toLowerCase();
+          const rowSong = (tr.getAttribute("data-song") || "").toLowerCase();
 
-          if (state.type !== "ALL" && rowType !== state.type) ok = false;
+          if (state.type && rowType.toLowerCase() !== state.type.toLowerCase())
+            ok = false;
+          if (ok && state.song && rowSong !== state.song.toLowerCase()) ok = false;
           if (
             ok &&
             state.anime &&
@@ -1061,6 +1102,19 @@
       });
     };
 
+    // Allow other UI elements (e.g., Overall tab lists) to set filters robustly
+    root.addEventListener("as-set-filters", (ev) => {
+      const d = (ev && ev.detail) || {};
+      ["search", "type", "anime", "artist", "song"].forEach((key) => {
+        if (key in d) {
+          state[key] = String(d[key] || "");
+          if (key === "search" && search) search.value = state.search;
+        }
+      });
+      apply();
+      syncChips();
+    });
+
     root.querySelectorAll(".as-tab[data-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
         setActiveTab(root, btn.dataset.tab);
@@ -1068,47 +1122,77 @@
       });
     });
 
-    search.addEventListener("input", () => {
-      state.search = search.value.trim();
-      apply();
-    });
-    type.addEventListener("change", () => {
-      state.type = type.value;
-      apply();
-    });
+    if (search)
+      search.addEventListener("input", () => {
+        state.search = search.value.trim();
+        apply();
+        syncChips();
+      });
 
-    clear.addEventListener("click", () => {
-      state.search = "";
-      state.type = "ALL";
-      state.anime = "";
-      state.artist = "";
-      search.value = "";
-      type.value = "ALL";
-      apply();
-    });
+    if (chipGroups) {
+      chipGroups.addEventListener("click", (e) => {
+        const chip = e.target.closest(".as-chip");
+        if (!chip) return;
+        const field = chip.getAttribute("data-filter-field");
+        const value = chip.getAttribute("data-filter-value") || "";
+        if (!field) return;
+        const isActive =
+          (state[field] || "").toLowerCase() === value.toLowerCase();
+        root.dispatchEvent(
+          new CustomEvent("as-set-filters", {
+            detail: { [field]: isActive ? "" : value },
+          })
+        );
+      });
+    }
+
+    if (clear)
+      clear.addEventListener("click", () => {
+        state.search = "";
+        state.type = "";
+        state.anime = "";
+        state.artist = "";
+        state.song = "";
+        if (search) search.value = "";
+        syncChips();
+        apply();
+      });
 
     root.querySelectorAll("[data-drill-anime]").forEach((el) => {
       el.classList.add("as-clickable");
       el.addEventListener("click", () => {
-        state.anime = el.getAttribute("data-drill-anime") || "";
-        state.artist = "";
         setActiveTab(root, "songStats");
-        apply();
+        root.dispatchEvent(
+          new CustomEvent("as-set-filters", {
+            detail: {
+              anime: el.getAttribute("data-drill-anime") || "",
+              artist: "",
+              song: "",
+            },
+          })
+        );
       });
     });
 
     root.querySelectorAll("[data-drill-artist]").forEach((el) => {
       el.classList.add("as-clickable");
       el.addEventListener("click", () => {
-        state.artist = el.getAttribute("data-drill-artist") || "";
-        state.anime = "";
         setActiveTab(root, "songStats");
-        apply();
+        root.dispatchEvent(
+          new CustomEvent("as-set-filters", {
+            detail: {
+              artist: el.getAttribute("data-drill-artist") || "",
+              anime: "",
+              song: "",
+            },
+          })
+        );
       });
     });
 
     setActiveTab(root, "overallStats");
     apply();
+    syncChips();
   }
 
   // ---------------------------
