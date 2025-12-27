@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AMQ Stats Display
 // @namespace    https://animemusicquiz.com/
-// @version      1.1
+// @version      1.2
 // @description  Display stats
 // @author       Problem02
 // @match        https://animemusicquiz.com/*
