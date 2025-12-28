@@ -54,17 +54,24 @@
             #statsModal .as-card .as-row .as-muted{opacity:.75;}
 
             #statsModal .as-actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border-bottom:1px solid rgba(255,255,255,.08);}
-            #statsModal .as-actions .as-action{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;padding:6px 10px;border-radius:10px;cursor:pointer;font-size:13px;}
-            #statsModal .as-actions .as-action:hover{background:rgba(255,255,255,.09);}
+            #statsModal .as-overallActions{justify-content:flex-end;padding:0;margin:2px 0 10px;border-bottom:none;}
+            #statsModal .as-overallFooter{position:sticky;bottom:0;z-index:6;display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;background:rgba(35,35,35,.98);border-top:1px solid rgba(255,255,255,.10);}
+            #statsModal .as-action{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);color:inherit;padding:6px 10px;border-radius:10px;cursor:pointer;font-size:13px;}
+            #statsModal .as-action:hover{background:rgba(255,255,255,.09);}
+            #statsModal .as-action.as-export{background:rgba(0,123,255,.35);border:1px solid rgba(0,123,255,.65);color:#fff;font-weight:700;border-radius:8px;}
+#statsModal .as-action.as-export:hover{background:rgba(0,123,255,.45);filter:none;}
 
             #statsModal .as-badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(var(--ink),.18);background:rgba(255,255,255,.06);white-space:nowrap;font-variant-numeric:tabular-nums;}
             #statsModal .as-badge.good{background:rgba(var(--good),.18);border-color:rgba(var(--good),.40);}
             #statsModal .as-badge.ok{background:rgba(var(--ok),.18);border-color:rgba(var(--ok),.40);}
             #statsModal .as-badge.bad{background:rgba(var(--bad),.18);border-color:rgba(var(--bad),.40);}
 /* Compact density (default) */
-            #statsModal table{font-size:12px;}
-            #statsModal tbody td{padding:4px 6px !important;}
-            #statsModal thead th{padding:6px 8px !important;}
+            #statsModal table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+            #statsModal table.as-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;}
+            #statsModal table.as-table tbody td{border-bottom:1px solid rgba(255,255,255,.08);padding:10px 12px;vertical-align:top;}
+            #statsModal table.as-table thead th{position:sticky;top:var(--as-thead-top,0px);z-index:3;background:rgba(50,50,50,.98);border-bottom:1px solid rgba(255,255,255,.12);padding:10px 12px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;}
+            #statsModal table.as-table thead th:first-child{padding-left:14px;}
+            #statsModal table.as-table tbody td:first-child{padding-left:14px;}
             #statsModal h3{margin:8px 0 !important;}
             #statsModal .as-controls{gap:8px;}
 
@@ -79,6 +86,10 @@
   padding:6px 8px;color:#fff;font-size:12px;line-height:1.2;white-space:nowrap;
   box-shadow:0 6px 18px rgba(0,0,0,.35);}
 
+/* All table content left-aligned (including numeric columns) */
+#statsModal table.as-table th,
+#statsModal table.as-table td { text-align: left !important; }
+#statsModal .as-num { text-align: left !important; font-variant-numeric: tabular-nums; }
 `;
     document.head.appendChild(style);
   }
@@ -234,6 +245,9 @@
               .join(", "),
             type: type,
             plays: plays,
+            correct: 0,
+            percentage: 0,
+            recentPercent: entry.recentPercent ?? 0,
           });
         }
       }
@@ -692,7 +706,7 @@
     const uAcc = safePct(under30.correctCount, under30.totalPlays);
     return `
             <div id="overallStats">
-              <div class="as-summary">
+<div class="as-summary">
                 <div class="as-kpi"><b>Total entries</b><span>${
                   overall.totalEntries
                 }</span></div>
@@ -711,13 +725,6 @@
                 <div class="as-kpi"><b>Unplayed</b><span class="as-unplayed-pct">${unplayedPct.toFixed(
                   2
                 )}%</span></div>
-              </div>
-
-              <div class="as-actions">
-                <button class="as-action" type="button" data-goto-tab="songStats">Browse songs</button>
-                <button class="as-action" type="button" data-goto-tab="songsToLearnStats">Songs to learn</button>
-                <button class="as-action" type="button" data-goto-tab="songsNeverGotStats">Never got</button>
-                <button class="as-action" type="button" data-goto-tab="animeToLearnStats">Anime to learn</button>
               </div>
 
               <div class="as-grid">
@@ -766,6 +773,9 @@
                   </ul>
                 </div>
               </div>
+              <div class="as-overallFooter">
+                <button class="as-action as-export" id="asExportBtn" type="button" title="Export stats to CSV">Export CSV</button>
+              </div>
             </div>
         `;
   }
@@ -773,17 +783,19 @@
   function formatAnimeStats(stats) {
     const total = ((stats && stats.animeStats) || []).length;
     return `
-            <div id="animeStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
-                    Anime Stats
-                </h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
-                    <thead style="position: sticky; top: 47px; background-color: #444; z-index: 5;">
+            <div id="animeStats" class="as-tableSection">
+                <div class="as-sectionHeading">
+                    <span>Anime Stats</span>
+                    <span class="as-count">${total}</span>
+                </div>
+
+                <table class="as-table" data-section="animeStats">
+                    <thead>
                         <tr>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 30%;">Name</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%;">Plays</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%;">Correct Count</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 30%;">Percentage</th>
+                            <th style="width: 30%;">Name</th>
+                            <th class="as-num" style="width: 20%;">Plays</th>
+                            <th class="as-num" style="width: 20%;">Correct Count</th>
+                            <th class="as-num" style="width: 30%;">Percentage</th>
                         </tr>
                     </thead>
                     <tbody id="asTbody-animeStats"></tbody>
@@ -868,21 +880,17 @@
 
     return `
       <tr data-type="${type}" data-plays="${plays}" data-artist="${artist}" data-anime="${anime}" data-song="${songName}" data-difficulty="${rawDifficulty}">
-        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${songName}">${songName}</span></td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${artist}">${artist}</span></td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${rawDifficulty}">${formatPercent(
+        <td><span class="as-filterable" data-filter-key="song" data-filter-value="${songName}">${songName}</span></td>
+        <td><span class="as-filterable" data-filter-key="artist" data-filter-value="${artist}">${artist}</span></td>
+        <td class="as-num"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${rawDifficulty}">${formatPercent(
       rawDifficulty
     )}</span></td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${anime}">${anime}</span></td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${type}">${type}</span></td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${plays}</td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${correct}</td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-          song.percentage
-        )}</td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-          song.recentPercent
-        )}</td>
+        <td><span class="as-filterable" data-filter-key="anime" data-filter-value="${anime}">${anime}</span></td>
+        <td><span class="as-filterable" data-filter-key="type" data-filter-value="${type}">${type}</span></td>
+        <td class="as-num">${plays}</td>
+        <td class="as-num">${correct}</td>
+        <td class="as-num">${formatPercent(song.percentage)}</td>
+        <td class="as-num">${formatPercent(song.recentPercent)}</td>
       </tr>
     `;
   }
@@ -893,28 +901,24 @@
     const correct = Number(anime.correct || 0);
     return `
       <tr>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-clickable" data-drill-anime="${name}">${name}</span></td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${plays}</td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${correct}</td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-          anime.percentage
-        )}</td>
+        <td><span class="as-clickable" data-drill-anime="${name}">${name}</span></td>
+        <td class="as-num">${plays}</td>
+        <td class="as-num">${correct}</td>
+        <td class="as-num">${formatPercent(anime.percentage)}</td>
       </tr>
     `;
   }
 
-  function artistRowHtml(artist) {
-    const name = escapeHtml(artist.artist || "");
-    const plays = Number(artist.plays || 0);
-    const correct = Number(artist.correct || 0);
+  function artistRowHtml(artistObj) {
+    const name = escapeHtml(artistObj.artist || "");
+    const plays = Number(artistObj.plays || 0);
+    const correct = Number(artistObj.correct || 0);
     return `
       <tr>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-clickable" data-drill-artist="${name}">${name}</span></td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${plays}</td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${correct}</td>
-        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-          artist.percentage
-        )}</td>
+        <td><span class="as-clickable" data-drill-artist="${name}">${name}</span></td>
+        <td class="as-num">${plays}</td>
+        <td class="as-num">${correct}</td>
+        <td class="as-num">${formatPercent(artistObj.percentage)}</td>
       </tr>
     `;
   }
@@ -1063,17 +1067,19 @@
   function formatArtistStats(stats) {
     const total = ((stats && stats.artistStats) || []).length;
     return `
-            <div id="artistStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
-                    Artist Stats
-                </h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
-                    <thead style="position: sticky; top: 47px; background-color: #444; z-index: 5;">
+            <div id="artistStats" class="as-tableSection">
+                <div class="as-sectionHeading">
+                    <span>Artist Stats</span>
+                    <span class="as-count">${total}</span>
+                </div>
+
+                <table class="as-table" data-section="artistStats">
+                    <thead>
                         <tr>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 30%;">Name</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%;">Plays</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%;">Correct Count</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 30%;">Percentage</th>
+                            <th style="width: 30%;">Name</th>
+                            <th class="as-num" style="width: 20%;">Plays</th>
+                            <th class="as-num" style="width: 20%;">Correct Count</th>
+                            <th class="as-num" style="width: 30%;">Percentage</th>
                         </tr>
                     </thead>
                     <tbody id="asTbody-artistStats"></tbody>
@@ -1085,22 +1091,24 @@
   function formatSongStats(stats) {
     const total = ((stats && stats.songStats) || []).length;
     return `
-            <div id="songStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
-                    Song Stats
-                </h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
-                    <thead style="position: sticky; top: 47px; background-color: #444; z-index: 5;">
+            <div id="songStats" class="as-tableSection">
+                <div class="as-sectionHeading">
+                    <span>Song Stats</span>
+                    <span class="as-count">${total}</span>
+                </div>
+
+                <table class="as-table" data-section="songStats">
+                    <thead>
                         <tr>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Song</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Artist</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Difficulty</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Anime</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Type</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Plays</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Correct Count</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Percentage</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Recent Percentage</th>
+                            <th style="white-space: nowrap;">Song</th>
+                            <th style="white-space: nowrap;">Artist</th>
+                            <th class="as-num" style="white-space: nowrap;">Difficulty</th>
+                            <th style="white-space: nowrap;">Anime</th>
+                            <th style="white-space: nowrap;">Type</th>
+                            <th class="as-num" style="white-space: nowrap;">Plays</th>
+                            <th class="as-num" style="white-space: nowrap;">Correct Count</th>
+                            <th class="as-num" style="white-space: nowrap;">Percentage</th>
+                            <th class="as-num" style="white-space: nowrap;">Recent Percentage</th>
                         </tr>
                     </thead>
                     <tbody id="asTbody-songStats"></tbody>
@@ -1112,17 +1120,19 @@
   function formatAnimeToLearnStats(stats) {
     const total = ((stats && stats.animeToLearn) || []).length;
     return `
-            <div id="animeToLearnStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
-                    Anime to Learn
-                </h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
-                    <thead style="position: sticky; top: 47px; background-color: #444; z-index: 5;">
+            <div id="animeToLearnStats" class="as-tableSection">
+                <div class="as-sectionHeading">
+                    <span>Anime To Learn</span>
+                    <span class="as-count">${total}</span>
+                </div>
+
+                <table class="as-table" data-section="animeToLearnStats">
+                    <thead>
                         <tr>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 40%">Name</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%">Plays</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%">Correct Count</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%">Percentage</th>
+                            <th style="width: 30%;">Name</th>
+                            <th class="as-num" style="width: 20%;">Plays</th>
+                            <th class="as-num" style="width: 20%;">Correct Count</th>
+                            <th class="as-num" style="width: 30%;">Percentage</th>
                         </tr>
                     </thead>
                     <tbody id="asTbody-animeToLearnStats"></tbody>
@@ -1134,22 +1144,24 @@
   function formatSongsToLearnStats(stats) {
     const total = ((stats && stats.songsToLearn) || []).length;
     return `
-            <div id="songsToLearnStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
-                    Songs to Learn
-                </h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
-                    <thead style="position: sticky; top: 47px; background-color: #444; z-index: 5;">
+            <div id="songsToLearnStats" class="as-tableSection">
+                <div class="as-sectionHeading">
+                    <span>Songs to Learn</span>
+                    <span class="as-count">${total}</span>
+                </div>
+
+                <table class="as-table" data-section="songsToLearnStats">
+                    <thead>
                         <tr>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Song</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Artist</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Difficulty</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Anime</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Type</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Plays</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Correct Count</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Percentage</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Recent Percentage</th>
+                            <th style="white-space: nowrap;">Song</th>
+                            <th style="white-space: nowrap;">Artist</th>
+                            <th class="as-num" style="white-space: nowrap;">Difficulty</th>
+                            <th style="white-space: nowrap;">Anime</th>
+                            <th style="white-space: nowrap;">Type</th>
+                            <th class="as-num" style="white-space: nowrap;">Plays</th>
+                            <th class="as-num" style="white-space: nowrap;">Correct Count</th>
+                            <th class="as-num" style="white-space: nowrap;">Percentage</th>
+                            <th class="as-num" style="white-space: nowrap;">Recent Percentage</th>
                         </tr>
                     </thead>
                     <tbody id="asTbody-songsToLearnStats"></tbody>
@@ -1161,22 +1173,24 @@
   function formatSongsNeverGotStats(stats) {
     const total = ((stats && stats.songsNeverGot) || []).length;
     return `
-            <div id="songsNeverGotStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
-                    Songs Never Got
-                </h3>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
-                    <thead style="position: sticky; top: 47px; background-color: #444; z-index: 5;">
+            <div id="songsNeverGotStats" class="as-tableSection">
+                <div class="as-sectionHeading">
+                    <span>Songs Never Got</span>
+                    <span class="as-count">${total}</span>
+                </div>
+
+                <table class="as-table" data-section="songsNeverGotStats">
+                    <thead>
                         <tr>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Song</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Artist</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Difficulty</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Anime</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Type</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Plays</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Correct Count</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Percentage</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Recent Percentage</th>
+                            <th style="white-space: nowrap;">Song</th>
+                            <th style="white-space: nowrap;">Artist</th>
+                            <th class="as-num" style="white-space: nowrap;">Difficulty</th>
+                            <th style="white-space: nowrap;">Anime</th>
+                            <th style="white-space: nowrap;">Type</th>
+                            <th class="as-num" style="white-space: nowrap;">Plays</th>
+                            <th class="as-num" style="white-space: nowrap;">Correct Count</th>
+                            <th class="as-num" style="white-space: nowrap;">Percentage</th>
+                            <th class="as-num" style="white-space: nowrap;">Recent Percentage</th>
                         </tr>
                     </thead>
                     <tbody id="asTbody-songsNeverGotStats"></tbody>
@@ -1222,18 +1236,40 @@
 
             #statsModal .as-controls label{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.95;}
             #statsModal .as-controls .as-pill{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:12px;}
-            #statsModal .as-body{flex:1;overflow:auto;padding:0;}
-            #statsModal .as-section{display:none !important;height:100%;}
+            #statsModal .as-body{flex:1;overflow:auto;padding:0;scrollbar-gutter:stable;}
+            #statsModal .as-overallFooter{position:sticky;bottom:0;z-index:6;display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;background:rgba(35,35,35,.98);border-top:1px solid rgba(255,255,255,.10);}
+            /* Inner table scrolling: scrollbar begins below the section heading.
+               IMPORTANT: use flex sizing (not percentage heights) so scrolling never "dies". */
+            #statsModal .as-body{min-height:0;} /* allow flex children to shrink */
+            #statsModal.as-innerScroll .as-panel{height:min(760px,92vh);} /* give inner scroll a definite height */
+            #statsModal.as-innerScroll .as-body{overflow:hidden;display:flex;flex-direction:column;min-height:0;}
+            #statsModal.as-innerScroll .as-section.as-visible{display:flex !important;flex-direction:column;flex:1;min-height:0;}
+            #statsModal.as-innerScroll .as-tableSection{display:flex;flex-direction:column;flex:1;min-height:0;}
+            #statsModal.as-innerScroll .as-tableWrap{flex:1;min-height:0;overflow:hidden;}
+            #statsModal.as-innerScroll table.as-table{width:100%;height:100%;display:block;table-layout:fixed;}
+            #statsModal.as-innerScroll table.as-table thead{display:block;}
+            #statsModal.as-innerScroll table.as-table tbody{display:block;overflow:auto;height:calc(100% - var(--as-thead-h, 0px));scrollbar-gutter:stable;}
+            #statsModal.as-innerScroll table.as-table thead tr,
+            #statsModal.as-innerScroll table.as-table tbody tr{display:table;width:100%;table-layout:fixed;}
+            #statsModal.as-innerScroll table.as-table thead th{position:relative !important;top:auto !important;}
+
+            #statsModal .as-section{display:none !important;}
             #statsModal .as-section.as-visible{display:block !important;}
+            #statsModal .as-tableSection{min-height:100%;}
+            #statsModal .as-sectionHeading{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;font-size:13px;font-weight:700;letter-spacing:.2px;background:rgba(42,42,42,.98);border-bottom:1px solid rgba(255,255,255,.12);}
+            #statsModal .as-sectionHeading .as-count{font-size:11px;font-weight:600;opacity:.85;padding:2px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.04);}
+            #statsModal .as-num{text-align:left;font-variant-numeric:tabular-nums;}
+
             #statsModal table{width:100%;border-collapse:collapse;font-size:13px;}
-            #statsModal thead th{position:sticky;top:0;background:rgba(50,50,50,.98);z-index:2;border-bottom:1px solid rgba(255,255,255,.15);padding:8px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;}
-            #statsModal thead th.as-sortable{padding-right:22px;}
-            #statsModal thead th.as-sortable::after{content:"";position:absolute;right:8px;top:50%;transform:translateY(-50%);opacity:.55;font-size:11px;}
-            #statsModal thead th.as-sortable[data-sort-dir="asc"]::after{content:"▲";}
-            #statsModal thead th.as-sortable[data-sort-dir="desc"]::after{content:"▼";}
+            #statsModal table.as-table thead th{position:sticky;top:var(--as-thead-top, 0px);background:rgba(50,50,50,.98);z-index:2;border-bottom:1px solid rgba(255,255,255,.15);padding:8px;text-align:left;cursor:pointer;user-select:none;white-space:nowrap;}
+            #statsModal table.as-table thead th.as-sortable{padding-right:22px;}
+            #statsModal table.as-table thead th.as-sortable::after{content:"";position:absolute;right:8px;top:50%;transform:translateY(-50%);opacity:.55;font-size:11px;}
+            #statsModal table.as-table thead th.as-sortable[data-sort-dir="asc"]::after{content:"▲";}
+            #statsModal table.as-table thead th.as-sortable[data-sort-dir="desc"]::after{content:"▼";}
 
             #statsModal tbody td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px;vertical-align:top;}
-            #statsModal tbody tr:hover{background:rgba(255,255,255,.04);}
+            #statsModal table.as-table tbody tr:nth-child(even){background:rgba(255,255,255,.02);}
+            #statsModal table.as-table tbody tr:hover{background:rgba(255,255,255,.05);} 
             #statsModal .as-clickable{color:#9ad1ff;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
 
             #statsModal .as-filter-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -1245,7 +1281,28 @@
             #statsModal .as-filterable{cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.35);text-underline-offset:3px;}
             #statsModal .as-filterable:hover{text-decoration-color:rgba(255,255,255,.75);}
 #statsModal .as-muted{opacity:.75;}
-        `;
+        
+/* --- Table alignment refresh --- */
+#statsModal table.as-table th, #statsModal table.as-table td{ text-align:left !important; }
+
+/* Song/artist/anime columns remain left-aligned on song-ish tables */
+
+
+/* --- Table alignment / stickies (final overrides) --- */
+/* All table content left-aligned (including numeric columns) */
+#statsModal table.as-table th,
+#statsModal table.as-table td { text-align: left !important; }
+
+#statsModal .as-num { text-align: left !important; font-variant-numeric: tabular-nums; }
+
+/* Header row sticks directly under the section heading */
+#statsModal:not(.as-innerScroll) table.as-table thead th { top: var(--as-thead-top, 0px) !important; z-index: 3; }
+
+/* Avoid any "see-through" seams between sticky heading + sticky table head */
+#statsModal .as-sectionHeading { margin: 0; }
+#statsModal table.as-table { margin: 0; }
+#statsModal table.as-table thead { background: rgba(50,50,50,.98); }
+`;
     document.head.appendChild(style);
   }
 
@@ -1328,18 +1385,31 @@
         el.classList.add("as-section");
       });
 
+    // Prepare per-table scroll containers.
+    ensureTableWrap(root);
+
     root.querySelector("#overallStats").classList.add("as-visible");
+
+    const onResize = () => syncStickyOffsets(root);
+    window.addEventListener("resize", onResize);
+
+    function closeModal() {
+      try {
+        window.removeEventListener("resize", onResize);
+      } catch (e) {}
+      root.remove();
+    }
 
     root
       .querySelector('[data-action="close"]')
-      .addEventListener("click", () => root.remove());
+      .addEventListener("click", () => closeModal());
     root.querySelector(".as-overlay").addEventListener("click", (e) => {
-      if (e.target.classList.contains("as-overlay")) root.remove();
+      if (e.target.classList.contains("as-overlay")) closeModal();
     });
 
     document.addEventListener("keydown", function escListener(e) {
       if (e.key === "Escape" && document.getElementById("statsModal")) {
-        document.getElementById("statsModal").remove();
+        closeModal();
         document.removeEventListener("keydown", escListener);
       }
     });
@@ -1377,11 +1447,213 @@
 
     document.body.appendChild(root);
 
+    // Cache initial (unfiltered) item counts so we can switch between total vs filtered counts.
+    root.querySelectorAll(".as-sectionHeading .as-count").forEach((el) => {
+      if (!el.dataset.total)
+        el.dataset.total = String(el.textContent || "").trim();
+    });
+
+    // Allow mouse-wheel scrolling anywhere in the content area when using inner table scroll.
+    // (Without this, scrolling only works when the cursor is over the table body.)
+    const bodyEl = root.querySelector("#asBody");
+    if (bodyEl) {
+      bodyEl.addEventListener(
+        "wheel",
+        (e) => {
+          if (!root.classList.contains("as-innerScroll")) return;
+
+          // Don't hijack scroll from form controls.
+          const tag =
+            e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
+          if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+          // If the wheel event originated inside the scrollable table area, let it scroll naturally.
+          if (
+            e.target &&
+            e.target.closest &&
+            e.target.closest(".as-tableWrap tbody")
+          )
+            return;
+
+          const wrap = bodyEl.querySelector(
+            ".as-section.as-visible .as-tableWrap"
+          );
+          const scroller = wrap ? wrap.querySelector("tbody") : null;
+          if (!scroller) return;
+
+          // If the table body can scroll, scroll it and prevent the "dead" feeling.
+          const prev = scroller.scrollTop;
+          scroller.scrollTop += e.deltaY;
+          if (scroller.scrollTop !== prev) {
+            e.preventDefault();
+          }
+        },
+        { passive: false }
+      );
+    }
+
+    window.requestAnimationFrame(() => syncStickyOffsets(root));
+    window.requestAnimationFrame(() => syncStickyOffsets(root));
     initTableSorting(root);
     renderDailyAccuracyChart(root);
     initFilteringAndDrilldown(root);
     initIncrementalRendering(root, stats);
     decorateAcc(root.querySelector("#overallStats"));
+    initExport(root, stats);
+  }
+
+  // ---------------------------
+  // CSV Export (Overall tab)
+  // ---------------------------
+  function initExport(root, stats) {
+    if (!root) return;
+    const btn = root.querySelector("#asExportBtn");
+    if (!btn) return;
+
+    btn.addEventListener("click", () => {
+      try {
+        const csvText = buildStatsCsv(stats);
+        const ts = new Date();
+        const y = ts.getFullYear();
+        const m = String(ts.getMonth() + 1).padStart(2, "0");
+        const d = String(ts.getDate()).padStart(2, "0");
+        const filename = `amq_stats_${y}-${m}-${d}.csv`;
+        downloadTextAsFile(filename, csvText, "text/csv;charset=utf-8");
+      } catch (e) {
+        console.error("[AMQ Stats] export failed", e);
+        alert("Export failed. Check the console for details.");
+      }
+    });
+  }
+
+  function downloadTextAsFile(filename, text, mime) {
+    const blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function csvEscape(value) {
+    if (value === null || value === undefined) return "";
+    const s = String(value);
+    // Escape if contains comma, quote, or newline
+    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  function buildStatsCsv(stats) {
+    // Spreadsheet-friendly "long" format:
+    // One header row, no blank lines, consistent columns across all datasets.
+    // Percent columns are numeric (0-100), not including a % symbol.
+    const now = new Date();
+    const exportedAt = now.toISOString();
+
+    const cols = [
+      "ExportedAt",
+      "Dataset",
+      "Metric",
+      "Value",
+      "Anime",
+      "Artist",
+      "Song",
+      "Type",
+      "Difficulty",
+      "Plays",
+      "Correct",
+      "AccuracyPct",
+      "RecentPct",
+    ];
+
+    const lines = [];
+    // UTF-8 BOM helps Excel open UTF-8 CSV correctly
+    lines.push("\ufeff" + cols.join(","));
+
+    const toFixed2 = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(2) : "";
+    };
+
+    const pushRow = (row) => {
+      const out = cols.map((k) => csvEscape(row[k] ?? ""));
+      lines.push(out.join(","));
+    };
+
+    // KPI rows (Overall + Under30)
+    const overall = (stats && stats.overall) || {};
+    const under30 = (stats && stats.under30) || {};
+
+    const pushKpi = (dataset, metric, value) =>
+      pushRow({
+        ExportedAt: exportedAt,
+        Dataset: dataset,
+        Metric: metric,
+        Value: value,
+      });
+
+    pushKpi("Overall", "Total Entries", overall.totalEntries ?? 0);
+    pushKpi("Overall", "Total Plays", overall.totalPlays ?? 0);
+    pushKpi("Overall", "Correct Count", overall.correctCount ?? 0);
+    pushKpi(
+      "Overall",
+      "AccuracyPct",
+      overall.totalPlays > 0
+        ? toFixed2((overall.correctCount / overall.totalPlays) * 100)
+        : "0.00"
+    );
+    pushKpi("Overall", "Gettable", overall.gettable ?? 0);
+    pushKpi("Overall", "Learned", overall.learned ?? 0);
+    pushKpi("Overall", "Unlearned", overall.unlearned ?? 0);
+    pushKpi("Overall", "Unplayed", overall.unplayed ?? 0);
+
+    pushKpi("Under30", "Total Plays", under30.totalPlays ?? 0);
+    pushKpi("Under30", "Correct Count", under30.correctCount ?? 0);
+    pushKpi(
+      "Under30",
+      "AccuracyPct",
+      under30.totalPlays > 0
+        ? toFixed2((under30.correctCount / under30.totalPlays) * 100)
+        : "0.00"
+    );
+
+    // Helper: push rows from a dataset with shared fields
+    const pushRows = (dataset, rows) => {
+      (rows || []).forEach((r) =>
+        pushRow({
+          ExportedAt: exportedAt,
+          Dataset: dataset,
+          Anime: r.anime ?? "",
+          Artist: r.artist ?? "",
+          Song: r.song ?? "",
+          Type: r.type ?? "",
+          Difficulty: r.difficulty ?? "",
+          Plays: r.plays ?? 0,
+          Correct: r.correct ?? 0,
+          AccuracyPct:
+            r.percentage !== undefined && r.percentage !== null
+              ? toFixed2(r.percentage)
+              : "",
+          RecentPct:
+            r.recentPercent !== undefined && r.recentPercent !== null
+              ? toFixed2(r.recentPercent)
+              : "",
+        })
+      );
+    };
+
+    pushRows("Anime Stats", (stats && stats.animeStats) || []);
+    pushRows("Artist Stats", (stats && stats.artistStats) || []);
+    pushRows("Song Stats", (stats && stats.songStats) || []);
+    pushRows("Anime to Learn", (stats && stats.animeToLearn) || []);
+    pushRows("Songs to Learn", (stats && stats.songsToLearn) || []);
+    pushRows("Never Correct", (stats && stats.neverCorrect) || []);
+
+    // Use CRLF for best compatibility
+    return lines.join("\r\n");
   }
 
   function setActiveTab(root, tabId) {
@@ -1405,7 +1677,16 @@
     const search = root.querySelector("#asSearch");
 
     const isOverall = tabId === "overallStats";
-    const isAnime = tabId === "animeStats";
+
+    // Use inner scrolling for table tabs so the scrollbar begins below the section heading.
+    root.classList.toggle("as-innerScroll", !isOverall);
+    if (!isOverall) ensureTableWrap(root);
+
+    const isSearchOnly = [
+      "animeStats",
+      "artistStats",
+      "animeToLearnStats",
+    ].includes(tabId);
     const isSongish = [
       "songStats",
       "songsToLearnStats",
@@ -1415,12 +1696,13 @@
     if (controls) controls.style.display = isOverall ? "none" : "flex";
     if (search) search.style.display = "inline-flex";
 
-    const showFilters = !isOverall && !isAnime;
+    // Filters only make sense on song-ish tables; other tabs behave like Anime (search-only).
+    const showFilters = !isOverall && !isSearchOnly;
     if (filterAdd) filterAdd.style.display = showFilters ? "flex" : "none";
     if (chips) chips.style.display = showFilters ? "flex" : "none";
     if (clearBtn) clearBtn.style.display = showFilters ? "inline-flex" : "none";
-    const showDiffRange =
-      showFilters && tabId !== "artistStats" && tabId !== "animeToLearnStats";
+
+    const showDiffRange = showFilters && isSongish;
     if (diffRange) diffRange.style.display = showDiffRange ? "flex" : "none";
 
     if (quick) quick.style.display = showFilters && isSongish ? "flex" : "none";
@@ -1429,6 +1711,9 @@
         new CustomEvent("as-tab-changed", { detail: { tabId } })
       );
     } catch (e) {}
+
+    // After switching tabs, recompute sticky offsets now that the section is visible.
+    window.requestAnimationFrame(() => syncStickyOffsets(root));
   }
 
   function decorateAcc(root) {
@@ -1539,6 +1824,61 @@
         th.title = "Click to sort (desc / asc)";
         th.addEventListener("click", () => sortBy(idx));
       });
+    });
+  }
+
+  // Ensure table headers sit exactly under the sticky section heading (no jitter/gaps).
+
+  function ensureTableWrap(root) {
+    // Wrap tables so the scrollbar begins below the sticky section heading.
+    root.querySelectorAll(".as-tableSection").forEach((section) => {
+      // Find a direct table child (avoid wrapping nested tables).
+      let table = null;
+      for (const ch of Array.from(section.children)) {
+        if (ch && ch.tagName === "TABLE" && ch.classList.contains("as-table")) {
+          table = ch;
+          break;
+        }
+      }
+      if (!table) return;
+      if (
+        table.parentElement &&
+        table.parentElement.classList.contains("as-tableWrap")
+      )
+        return;
+
+      const wrap = document.createElement("div");
+      wrap.className = "as-tableWrap";
+      section.insertBefore(wrap, table);
+      wrap.appendChild(table);
+    });
+  }
+
+  function syncStickyOffsets(root) {
+    const inner = root.classList.contains("as-innerScroll");
+    const scope = root.querySelector(".as-section.as-visible") || root;
+
+    // Table tabs: we use an inner layout. The section heading + column headers stay fixed,
+    // and ONLY the tbody scrolls so the scrollbar begins under the column headers.
+    scope.querySelectorAll(".as-tableSection").forEach((section) => {
+      const heading = section.querySelector(".as-sectionHeading");
+      if (!heading) return;
+
+      if (inner) {
+        section.style.setProperty("--as-thead-top", "0px");
+
+        // Measure thead height so tbody can fill the remaining space (prevents clipping).
+        const table = section.querySelector("table.as-table");
+        if (table) {
+          const thead = table.querySelector("thead");
+          const h = Math.ceil(thead?.getBoundingClientRect().height || 0);
+          table.style.setProperty("--as-thead-h", `${h}px`);
+        }
+        return;
+      }
+
+      const h = Math.ceil(heading.getBoundingClientRect().height || 0);
+      section.style.setProperty("--as-thead-top", `${h}px`);
     });
   }
 
@@ -1753,8 +2093,45 @@
     };
 
     const applyRow = (tr, sectionId, q) => {
-      tr.style.display = rowPasses(tr, sectionId, q) ? "" : "none";
+      const pass = rowPasses(tr, sectionId, q);
+      tr.style.display = pass ? "" : "none";
+      return pass;
     };
+
+    const anyActiveForSection = (sectionId, qLc) => {
+      if (qLc) return true;
+      const isSongish = [
+        "songStats",
+        "songsToLearnStats",
+        "songsNeverGotStats",
+      ].includes(sectionId);
+      if (!isSongish) return false;
+      const anyFilterChips = Object.values(state.filters).some(
+        (a) => a && a.length
+      );
+      const anyDiff = state.diff.min !== 0 || state.diff.max !== 100;
+      return anyFilterChips || anyDiff;
+    };
+
+    const setSectionCount = (sectionId, visibleCount, filtered) => {
+      const section = root.querySelector(`#${sectionId}`);
+      const el = section
+        ? section.querySelector(".as-sectionHeading .as-count")
+        : null;
+      if (!el) return;
+      const total =
+        parseInt(el.dataset.total || String(el.textContent || "0"), 10) || 0;
+      if (filtered) {
+        el.textContent = String(visibleCount);
+        el.title = `${visibleCount} shown (of ${total})`;
+      } else {
+        el.textContent = String(total);
+        el.title = `${total} items`;
+      }
+    };
+
+    // Track visible counts for the active tab so incremental rendering can update counts smoothly.
+    const visibleBySection = {};
 
     const apply = () => {
       const activeId = root.querySelector(".as-section.as-visible")?.id;
@@ -1762,11 +2139,20 @@
 
       renderChips();
 
-      root.querySelectorAll(".as-section table tbody tr").forEach((tr) => {
-        const section = tr.closest(".as-section");
-        if (!section || section.id !== activeId) return;
-        applyRow(tr, activeId, q);
+      if (!activeId) return;
+      const rows = root.querySelectorAll(`#${activeId} table tbody tr`);
+      let visible = 0;
+      rows.forEach((tr) => {
+        if (applyRow(tr, activeId, q)) visible += 1;
       });
+
+      const filtered = anyActiveForSection(activeId, q);
+      if (filtered) {
+        visibleBySection[activeId] = visible;
+      } else {
+        visibleBySection[activeId] = rows.length;
+      }
+      setSectionCount(activeId, visibleBySection[activeId], filtered);
     };
 
     // Wire throttled apply to the actual apply implementation.
@@ -1791,8 +2177,29 @@
         if (!tr || tr.nodeType !== 1) return;
         const sectionId = d.tabId || tr.closest?.(".as-section")?.id;
         if (!sectionId) return;
-        applyRow(tr, sectionId, q);
+        const pass = applyRow(tr, sectionId, q);
+
+        // Keep the section count accurate while incremental rendering adds rows.
+        const activeId = root.querySelector(".as-section.as-visible")?.id;
+        if (
+          activeId &&
+          sectionId === activeId &&
+          anyActiveForSection(activeId, q)
+        ) {
+          if (!(activeId in visibleBySection)) visibleBySection[activeId] = 0;
+          if (pass) visibleBySection[activeId] += 1;
+        }
       });
+
+      // If we're currently viewing this tab and filters are active, refresh the header count.
+      const activeId2 = root.querySelector(".as-section.as-visible")?.id;
+      if (
+        activeId2 &&
+        d.tabId === activeId2 &&
+        anyActiveForSection(activeId2, q)
+      ) {
+        setSectionCount(activeId2, visibleBySection[activeId2] || 0, true);
+      }
     });
 
     // Allow other UI elements (e.g., Overall tab lists) to set filters robustly
