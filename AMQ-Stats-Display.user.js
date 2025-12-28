@@ -200,8 +200,17 @@
       // Update song stats
       const song = entry.name;
       if (song) {
-        if (!songData[song]) {
-          songData[song] = {
+        // Use a composite key so songs with the same title from different anime/versions don't get merged together
+        const animeKey = entry.anime
+          ? Object.keys(entry.anime).sort().join("|")
+          : "";
+        const songKey = `${song}||${entry.artist || ""}||${
+          type || ""
+        }||${animeKey}`;
+
+        if (!songData[songKey]) {
+          songData[songKey] = {
+            song,
             plays: 0,
             correct: 0,
             artist: entry.artist,
@@ -211,8 +220,8 @@
             recentPercent: entry.recentPercent,
           };
         }
-        songData[song].plays += plays;
-        songData[song].correct += correct;
+        songData[songKey].plays += plays;
+        songData[songKey].correct += correct;
 
         // Add to songsNeverGot if plays > 0 and correct == 0
         if (plays > 0 && correct === 0) {
@@ -259,9 +268,17 @@
     stats.artistStats.sort((a, b) => b.plays - a.plays);
 
     // Prepare song stats
-    for (const song in songData) {
-      const { plays, correct, artist, difficulty, anime, type, recentPercent } =
-        songData[song];
+    for (const songKey in songData) {
+      const {
+        song,
+        plays,
+        correct,
+        artist,
+        difficulty,
+        anime,
+        type,
+        recentPercent,
+      } = songData[songKey];
       const percentage = plays > 0 ? (correct / plays) * 100 : 0;
 
       stats.songStats.push({
@@ -646,6 +663,8 @@
       const tAcc = safePct(t.correct || 0, t.plays || 0);
       const tGet = safePct(t.gettable || 0, t.total || 0);
       const tLearn = safePct(t.learned || 0, t.total || 0);
+      const tPlayed = Math.max(0, (t.total || 0) - (t.unplayed || 0));
+      const tPlayedPct = safePct(tPlayed, t.total || 0);
       return `
         <div class="as-card">
           <h4>${label}</h4>
@@ -655,6 +674,9 @@
           <div class="as-row"><span class="as-muted">Plays</span><span>${
             t.plays || 0
           }</span></div>
+          <div class="as-row"><span class="as-muted">Played</span><span>${tPlayed} / ${
+        t.total || 0
+      } ${tPlayedPct.toFixed(2)}%</span></div>
           <div class="as-row"><span class="as-muted">Accuracy</span><span>${
             t.correct || 0
           } / ${t.plays || 0} ${tAcc.toFixed(2)}%</span></div>
@@ -668,8 +690,6 @@
     };
 
     const uAcc = safePct(under30.correctCount, under30.totalPlays);
-    const uLearn = safePct(under30.learned, under30.totalEntries);
-
     return `
             <div id="overallStats">
               <div class="as-summary">
@@ -688,7 +708,7 @@
                 <div class="as-kpi"><b>Learned (&gt;70%)</b><span>${learnedPct.toFixed(
                   2
                 )}%</span></div>
-                <div class="as-kpi"><b>Unplayed</b><span>${unplayedPct.toFixed(
+                <div class="as-kpi"><b>Unplayed</b><span class="as-unplayed-pct">${unplayedPct.toFixed(
                   2
                 )}%</span></div>
               </div>
@@ -718,10 +738,6 @@
                   <div class="as-row"><span class="as-muted">Accuracy</span><span>${
                     under30.correctCount
                   } / ${under30.totalPlays} ${uAcc.toFixed(2)}%</span></div>
-                  <div class="as-row"><span class="as-muted">Learned</span><span>${
-                    under30.learned
-                  } / ${under30.totalEntries} ${uLearn.toFixed(2)}%</span></div>
-                
                   <div class="as-miniChart" id="asDailyAccuracyWrap">
                     <div class="as-miniChartTitle">Daily accuracy (last 30 days)</div>
                     <canvas id="asDailyAccuracyCanvas" height="115"></canvas>
@@ -755,9 +771,10 @@
   }
 
   function formatAnimeStats(stats) {
+    const total = ((stats && stats.animeStats) || []).length;
     return `
             <div id="animeStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; margin: 0; padding: 10px 20px; color: #FFFFFF; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
+                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
                     Anime Stats
                 </h3>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
@@ -769,28 +786,7 @@
                             <th style="border: 1px solid #FFFFFF; padding: 8px; width: 30%;">Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${stats.animeStats
-                          .map(
-                            (anime) => `
-                            <tr>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span data-drill-anime="${
-                                  anime.anime
-                                }">${anime.anime}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  anime.plays
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  anime.correct
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${anime.percentage.toFixed(
-                                  2
-                                )}%</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
+                    <tbody id="asTbody-animeStats"></tbody>
                 </table>
             </div>
         `;
@@ -804,10 +800,271 @@
     return `${num.toFixed(digits)}%`;
   }
 
+  // Debounce helper (used to keep search input responsive on large tables)
+  function debounce(fn, wait = 150) {
+    let t = 0;
+    return function (...args) {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => fn.apply(this, args), wait);
+    };
+  }
+
+  // Throttle helper (used to keep range slider filtering smooth while dragging)
+  function throttle(fn, wait = 80) {
+    let last = 0;
+    let t = 0;
+    let lastArgs;
+    let lastThis;
+
+    return function (...args) {
+      const now = Date.now();
+      lastArgs = args;
+      lastThis = this;
+
+      const remaining = wait - (now - last);
+      if (remaining <= 0 || remaining > wait) {
+        if (t) {
+          window.clearTimeout(t);
+          t = 0;
+        }
+        last = now;
+        fn.apply(lastThis, lastArgs);
+      } else if (!t) {
+        t = window.setTimeout(() => {
+          t = 0;
+          last = Date.now();
+          fn.apply(lastThis, lastArgs);
+        }, remaining);
+      }
+    };
+  }
+
+  // Append HTML containing one or more <tr> rows to a <tbody>, and return the appended row elements.
+  function appendRowsHtml(tbody, html) {
+    if (!tbody || !html) return [];
+    const tmp = document.createElement("tbody");
+    tmp.innerHTML = html;
+    const rows = Array.from(tmp.children);
+    if (!rows.length) return [];
+    const frag = document.createDocumentFragment();
+    rows.forEach((r) => frag.appendChild(r));
+    tbody.appendChild(frag);
+    return rows;
+  }
+
+  function songishRowHtml(song) {
+    const songName = escapeHtml(song.song || "");
+    const artist = escapeHtml(song.artist || "");
+    const anime = escapeHtml(song.anime || "");
+    const type = escapeHtml(song.type || "");
+
+    const plays = Number(song.plays || 0);
+    const correct = Number(song.correct || 0);
+
+    // IMPORTANT: keep difficulty formatting identical to the pre-optimization script.
+    // - Display uses formatPercent(rawDifficulty) so undefined/null/NaN shows "N/A"
+    // - data-filter-value uses the raw value (not the formatted percent string)
+    const rawDifficulty = song.difficulty;
+
+    return `
+      <tr data-type="${type}" data-plays="${plays}" data-artist="${artist}" data-anime="${anime}" data-song="${songName}" data-difficulty="${rawDifficulty}">
+        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${songName}">${songName}</span></td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${artist}">${artist}</span></td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${rawDifficulty}">${formatPercent(
+      rawDifficulty
+    )}</span></td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${anime}">${anime}</span></td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${type}">${type}</span></td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${plays}</td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${correct}</td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
+          song.percentage
+        )}</td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
+          song.recentPercent
+        )}</td>
+      </tr>
+    `;
+  }
+
+  function animeRowHtml(anime) {
+    const name = escapeHtml(anime.anime || "");
+    const plays = Number(anime.plays || 0);
+    const correct = Number(anime.correct || 0);
+    return `
+      <tr>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-clickable" data-drill-anime="${name}">${name}</span></td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${plays}</td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${correct}</td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
+          anime.percentage
+        )}</td>
+      </tr>
+    `;
+  }
+
+  function artistRowHtml(artist) {
+    const name = escapeHtml(artist.artist || "");
+    const plays = Number(artist.plays || 0);
+    const correct = Number(artist.correct || 0);
+    return `
+      <tr>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-clickable" data-drill-artist="${name}">${name}</span></td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${plays}</td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${correct}</td>
+        <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
+          artist.percentage
+        )}</td>
+      </tr>
+    `;
+  }
+
+  function initIncrementalRendering(root, stats) {
+    const token = { cancelled: false };
+
+    // Stop background work when modal is removed
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(root)) {
+        token.cancelled = true;
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    const cfgs = [
+      {
+        tabId: "songStats",
+        tbodyId: "asTbody-songStats",
+        labelId: "asLoad-songStats",
+        items: (stats && stats.songStats) || [],
+        rowHtml: songishRowHtml,
+      },
+      {
+        tabId: "songsToLearnStats",
+        tbodyId: "asTbody-songsToLearnStats",
+        labelId: "asLoad-songsToLearnStats",
+        items: (stats && stats.songsToLearn) || [],
+        rowHtml: songishRowHtml,
+      },
+      {
+        tabId: "songsNeverGotStats",
+        tbodyId: "asTbody-songsNeverGotStats",
+        labelId: "asLoad-songsNeverGotStats",
+        items: (stats && stats.songsNeverGot) || [],
+        rowHtml: songishRowHtml,
+      },
+      {
+        tabId: "animeStats",
+        tbodyId: "asTbody-animeStats",
+        labelId: "asLoad-animeStats",
+        items: (stats && stats.animeStats) || [],
+        rowHtml: animeRowHtml,
+      },
+      {
+        tabId: "animeToLearnStats",
+        tbodyId: "asTbody-animeToLearnStats",
+        labelId: "asLoad-animeToLearnStats",
+        items: (stats && stats.animeToLearn) || [],
+        rowHtml: animeRowHtml,
+      },
+      {
+        tabId: "artistStats",
+        tbodyId: "asTbody-artistStats",
+        labelId: "asLoad-artistStats",
+        items: (stats && stats.artistStats) || [],
+        rowHtml: artistRowHtml,
+      },
+    ];
+
+    const makeRenderer = (cfg) => {
+      let i = 0;
+      let started = false;
+
+      const tbody = root.querySelector("#" + cfg.tbodyId);
+      const items = Array.isArray(cfg.items) ? cfg.items : [];
+      const total = items.length;
+
+      const renderSome = (count) => {
+        if (token.cancelled || !tbody || !tbody.isConnected) return;
+        const end = Math.min(total, i + count);
+        if (end <= i) return;
+
+        const parts = new Array(end - i);
+        for (let j = i, k = 0; j < end; j++, k++)
+          parts[k] = cfg.rowHtml(items[j]);
+        const html = parts.join("");
+        i = end;
+
+        const rows = appendRowsHtml(tbody, html);
+
+        // Apply badges + current filters to newly-added rows only
+        rows.forEach((r) => decorateAcc(r));
+        try {
+          root.dispatchEvent(
+            new CustomEvent("as-apply-rows", {
+              detail: { rows, tabId: cfg.tabId },
+            })
+          );
+        } catch (e) {}
+      };
+
+      const schedule = () => {
+        if (token.cancelled || !tbody || !tbody.isConnected) return;
+        if (i >= total) return;
+
+        const work = () => {
+          if (token.cancelled || !tbody || !tbody.isConnected) return;
+          renderSome(250);
+          schedule();
+        };
+
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(work, { timeout: 200 });
+        } else {
+          window.setTimeout(work, 0);
+        }
+      };
+
+      return {
+        start() {
+          if (started) return;
+          started = true;
+
+          // First chunk: show something immediately
+          renderSome(500);
+
+          // Remaining chunks: background
+          schedule();
+        },
+        get started() {
+          return started;
+        },
+      };
+    };
+
+    const renderers = new Map();
+    cfgs.forEach((cfg) => renderers.set(cfg.tabId, makeRenderer(cfg)));
+
+    const startFor = (tabId) => {
+      const r = renderers.get(tabId);
+      if (r) r.start();
+    };
+
+    // Start rendering the tab the user visits first
+    root.addEventListener("as-tab-changed", (ev) => {
+      const tabId = ev && ev.detail && ev.detail.tabId;
+      if (tabId) startFor(tabId);
+    });
+
+    // Prewarm the biggest table shortly after open (keeps UI snappy on first click)
+    window.setTimeout(() => startFor("songStats"), 0);
+  }
+
   function formatArtistStats(stats) {
+    const total = ((stats && stats.artistStats) || []).length;
     return `
             <div id="artistStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; margin: 0; padding: 10px 20px; color: #FFFFFF; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
+                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
                     Artist Stats
                 </h3>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
@@ -819,37 +1076,17 @@
                             <th style="border: 1px solid #FFFFFF; padding: 8px; width: 30%;">Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${stats.artistStats
-                          .map(
-                            (artist) => `
-                            <tr>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span data-drill-artist="${
-                                  artist.artist
-                                }">${artist.artist}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  artist.plays
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  artist.correct
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-                                  artist.percentage
-                                )}</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
+                    <tbody id="asTbody-artistStats"></tbody>
                 </table>
             </div>
         `;
   }
 
   function formatSongStats(stats) {
+    const total = ((stats && stats.songStats) || []).length;
     return `
             <div id="songStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; margin: 0; padding: 10px 20px; color: #FFFFFF; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
+                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
                     Song Stats
                 </h3>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
@@ -866,60 +1103,17 @@
                             <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Recent Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${stats.songStats
-                          .map(
-                            (song) => `
-                            <tr data-type="${song.type}" data-plays="${
-                              song.plays
-                            }" data-artist="${escapeHtml(
-                              song.artist || ""
-                            )}" data-anime="${escapeHtml(
-                              song.anime || ""
-                            )}" data-song="${escapeHtml(
-                              song.song
-                            )}" data-difficulty="${song.difficulty}">
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${escapeHtml(
-                                  song.song
-                                )}">${escapeHtml(song.song)}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${escapeHtml(
-                                  song.artist || ""
-                                )}">${escapeHtml(song.artist || "")}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${
-                                  song.difficulty
-                                }">${formatPercent(song.difficulty)}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${escapeHtml(
-                                  song.anime || ""
-                                )}">${escapeHtml(song.anime || "")}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${
-                                  song.type
-                                }">${song.type}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  song.plays
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  song.correct
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-                                  song.percentage
-                                )}</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-                                  song.recentPercent
-                                )}</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
+                    <tbody id="asTbody-songStats"></tbody>
                 </table>
             </div>
         `;
   }
 
   function formatAnimeToLearnStats(stats) {
+    const total = ((stats && stats.animeToLearn) || []).length;
     return `
             <div id="animeToLearnStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; margin: 0; padding: 10px 20px; color: #FFFFFF; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
+                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
                     Anime to Learn
                 </h3>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
@@ -931,37 +1125,17 @@
                             <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%">Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${stats.animeToLearn
-                          .map(
-                            (anime) => `
-                            <tr>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span data-drill-anime="${
-                                  anime.anime
-                                }">${anime.anime}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  anime.plays
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  anime.correct
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${anime.percentage.toFixed(
-                                  2
-                                )}%</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
+                    <tbody id="asTbody-animeToLearnStats"></tbody>
                 </table>
             </div>
         `;
   }
 
   function formatSongsToLearnStats(stats) {
+    const total = ((stats && stats.songsToLearn) || []).length;
     return `
             <div id="songsToLearnStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; margin: 0; padding: 10px 20px; color: #FFFFFF; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
+                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
                     Songs to Learn
                 </h3>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
@@ -978,109 +1152,34 @@
                             <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Recent Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${stats.songsToLearn
-                          .map(
-                            (song) => `
-                            <tr data-type="${song.type}" data-plays="${
-                              song.plays
-                            }" data-artist="${escapeHtml(
-                              song.artist || ""
-                            )}" data-anime="${escapeHtml(
-                              song.anime || ""
-                            )}" data-song="${escapeHtml(
-                              song.song
-                            )}" data-difficulty="${song.difficulty}">
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${escapeHtml(
-                                  song.song
-                                )}">${escapeHtml(song.song)}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${escapeHtml(
-                                  song.artist || ""
-                                )}">${escapeHtml(song.artist || "")}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${
-                                  song.difficulty
-                                }">${formatPercent(song.difficulty)}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${escapeHtml(
-                                  song.anime || ""
-                                )}">${escapeHtml(song.anime || "")}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${
-                                  song.type
-                                }">${song.type}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  song.plays
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  song.correct
-                                }</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-                                  song.percentage
-                                )}</td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${formatPercent(
-                                  song.recentPercent
-                                )}</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
+                    <tbody id="asTbody-songsToLearnStats"></tbody>
                 </table>
             </div>
         `;
   }
 
   function formatSongsNeverGotStats(stats) {
+    const total = ((stats && stats.songsNeverGot) || []).length;
     return `
             <div id="songsNeverGotStats" style="height: 100%; overflow-y: auto; position: relative;">
-                <h3 style="position: sticky; top: 0; background-color: #333; margin: 0; padding: 10px 20px; color: #FFFFFF; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
+                <h3 style="position: sticky; top: 0; background-color: #333; padding: 8px; text-align: center; z-index: 10; border-bottom: 2px solid #FFFFFF;">
                     Songs Never Got
                 </h3>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 8px; text-align: left;">
                     <thead style="position: sticky; top: 47px; background-color: #444; z-index: 5;">
                         <tr>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%;">Song</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 20%;">Artist</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 15%;">Difficulty</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 25%;">Anime</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 10%;">Type</th>
-                            <th style="border: 1px solid #FFFFFF; padding: 8px; width: 10%;">Plays</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Song</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Artist</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Difficulty</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Anime</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Type</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Plays</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Correct Count</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Percentage</th>
+                            <th style="border: 1px solid #FFFFFF; padding: 8px; white-space: nowrap;">Recent Percentage</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${stats.songsNeverGot
-                          .map(
-                            (song) => `
-                            <tr data-type="${song.type}" data-plays="${
-                              song.plays
-                            }" data-artist="${escapeHtml(
-                              song.artist || ""
-                            )}" data-anime="${escapeHtml(
-                              song.anime || ""
-                            )}" data-song="${escapeHtml(
-                              song.song
-                            )}" data-difficulty="${song.difficulty}">
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="song" data-filter-value="${escapeHtml(
-                                  song.song
-                                )}">${escapeHtml(song.song)}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="artist" data-filter-value="${escapeHtml(
-                                  song.artist || ""
-                                )}">${escapeHtml(song.artist || "")}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="difficulty" data-filter-value="${
-                                  song.difficulty
-                                }">${formatPercent(song.difficulty)}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="anime" data-filter-value="${escapeHtml(
-                                  song.anime || ""
-                                )}">${escapeHtml(song.anime || "")}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;"><span class="as-filterable" data-filter-key="type" data-filter-value="${
-                                  song.type
-                                }">${song.type}</span></td>
-                                <td style="border: 1px solid #FFFFFF; padding: 8px;">${
-                                  song.plays
-                                }</td>
-                            </tr>
-                        `
-                          )
-                          .join("")}
-                    </tbody>
+                    <tbody id="asTbody-songsNeverGotStats"></tbody>
                 </table>
             </div>
         `;
@@ -1110,7 +1209,7 @@
             #statsModal .as-diffRange input[type="number"]::-webkit-outer-spin-button,
             #statsModal .as-diffRange input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 
-            #statsModal .as-dualSlider{position:relative;width:170px;height:18px;display:inline-flex;align-items:center;margin:0 4px;;--as-thumb:14px;--as-thumbPad:10px\}
+            #statsModal .as-dualSlider{position:relative;width:170px;height:18px;display:inline-flex;align-items:center;margin:0 4px;;--as-thumb:14px;--as-thumbPad:10px}
             #statsModal .as-dualSlider .as-dualTrack{position:absolute;left:var(--as-thumbPad);right:var(--as-thumbPad);top:50%;transform:translateY(-50%);height:4px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.10);z-index:1;}
             #statsModal .as-dualSlider .as-dualFill{position:absolute;left:var(--as-thumbPad);right:var(--as-thumbPad);top:50%;transform:translateY(-50%);height:4px;border-radius:999px;background:rgba(0,123,255,.55);z-index:2;pointer-events:none;}
 
@@ -1136,7 +1235,7 @@
             #statsModal tbody td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px;vertical-align:top;}
             #statsModal tbody tr:hover{background:rgba(255,255,255,.04);}
             #statsModal .as-clickable{color:#9ad1ff;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
-            
+
             #statsModal .as-filter-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
             #statsModal .as-filterChips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:18px;}
             #statsModal .as-chip{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);font-size:12px;cursor:pointer;user-select:none;white-space:nowrap;}
@@ -1252,7 +1351,7 @@
       e.preventDefault();
       const tabId = t.dataset.gotoTab;
       const tabBtn = root.querySelector(`.as-tab[data-tab="${tabId}"]`);
-      if (tabBtn) tabBtn.click(); // triggers filtering apply()
+      if (tabBtn) tabBtn.click(); // triggers filtering scheduleApply()
       const q = t.dataset.gotoSearch || "";
       const song = t.dataset.gotoSong || "";
       const artist = t.dataset.gotoArtist || "";
@@ -1281,7 +1380,8 @@
     initTableSorting(root);
     renderDailyAccuracyChart(root);
     initFilteringAndDrilldown(root);
-    decorateAcc(root);
+    initIncrementalRendering(root, stats);
+    decorateAcc(root.querySelector("#overallStats"));
   }
 
   function setActiveTab(root, tabId) {
@@ -1319,15 +1419,22 @@
     if (filterAdd) filterAdd.style.display = showFilters ? "flex" : "none";
     if (chips) chips.style.display = showFilters ? "flex" : "none";
     if (clearBtn) clearBtn.style.display = showFilters ? "inline-flex" : "none";
-    if (diffRange) diffRange.style.display = showFilters ? "flex" : "none";
+    const showDiffRange =
+      showFilters && tabId !== "artistStats" && tabId !== "animeToLearnStats";
+    if (diffRange) diffRange.style.display = showDiffRange ? "flex" : "none";
 
     if (quick) quick.style.display = showFilters && isSongish ? "flex" : "none";
+    try {
+      root.dispatchEvent(
+        new CustomEvent("as-tab-changed", { detail: { tabId } })
+      );
+    } catch (e) {}
   }
+
   function decorateAcc(root) {
     // Adds accuracy badges. Safe to call multiple times.
-    const nodes = root.querySelectorAll(
-      "#statsModal td, #statsModal p, #statsModal li, #statsModal span"
-    );
+    if (!root) return;
+    const nodes = root.querySelectorAll("td, p, li, span");
     nodes.forEach((el) => {
       if (!el || !el.textContent) return;
       if (el.querySelector && el.querySelector(".as-badge")) return; // already decorated
@@ -1337,7 +1444,14 @@
       if (!m) return;
 
       const pct = Math.max(0, Math.min(100, parseFloat(m[1])));
-      const badgeClass = pct >= 70 ? "good" : pct <= 29 ? "bad" : "ok";
+      let badgeClass;
+      if (el.classList && el.classList.contains("as-unplayed-pct")) {
+        // For unplayed %, lower is better:
+        // green under 10%, red at 50%+
+        badgeClass = pct < 10 ? "good" : pct >= 50 ? "bad" : "ok";
+      } else {
+        badgeClass = pct >= 70 ? "good" : pct <= 29 ? "bad" : "ok";
+      }
       const badgeHtml = `<span class="as-badge ${badgeClass}">${pct.toFixed(
         2
       )}%</span>`;
@@ -1466,6 +1580,18 @@
       return Math.max(0, Math.min(100, x));
     };
 
+    // Throttled apply: coalesce rapid UI input events into a single filter pass per animation frame.
+    let _applyRaf = 0;
+    let _applyImpl = null;
+    const scheduleApply = () => {
+      if (!_applyImpl) return;
+      if (_applyRaf) return;
+      _applyRaf = window.requestAnimationFrame(() => {
+        _applyRaf = 0;
+        _applyImpl();
+      });
+    };
+
     const syncDifficultyUI = () => {
       if (!diffMin || !diffMax || !diffMinRange || !diffMaxRange) return;
       diffMin.value = String(state.diff.min);
@@ -1479,32 +1605,13 @@
         diffMaxRange.style.zIndex = "5";
       } catch (e) {}
       // Update the highlighted segment on the shared track
-      if (diffFill && diffDual) {
-        // Firefox and Chromium lay out range thumbs slightly differently. To keep the highlight
-        // from ever peeking past the visible thumbs (especially at 0/100), we draw the fill
-        // inside an inner "usable" track that is inset from the edges by a thumb padding.
-        const cs = getComputedStyle(diffDual);
-        const thumbPx = parseFloat(cs.getPropertyValue("--as-thumb")) || 14;
-        const padPx =
-          parseFloat(cs.getPropertyValue("--as-thumbPad")) || thumbPx / 2;
-
-        const W = diffDual.clientWidth || 0;
-        const innerW = Math.max(0, W - 2 * padPx);
-
-        const minPos = padPx + (state.diff.min / 100) * innerW;
-        const maxPos = padPx + (state.diff.max / 100) * innerW;
-
-        const left = Math.max(
-          padPx,
-          Math.min(W - padPx, Math.min(minPos, maxPos))
-        );
-        const rightPos = Math.max(
-          padPx,
-          Math.min(W - padPx, Math.max(minPos, maxPos))
-        );
-
-        diffFill.style.left = `${left}px`;
-        diffFill.style.right = `${Math.max(0, W - rightPos)}px`;
+      if (diffFill) {
+        // Use pure CSS calc() based on percentages so the fill is correct on first paint
+        const inner = "(100% - (var(--as-thumbPad) * 2))";
+        diffFill.style.left = `calc(var(--as-thumbPad) + (${state.diff.min} * ${inner} / 100))`;
+        diffFill.style.right = `calc(var(--as-thumbPad) + (${
+          100 - state.diff.max
+        } * ${inner} / 100))`;
       }
     };
 
@@ -1529,7 +1636,7 @@
       state.diff.min = mn;
       state.diff.max = mx;
       syncDifficultyUI();
-      if (doApply) apply();
+      if (doApply) scheduleApply();
     };
 
     const hasFilter = (key, value) =>
@@ -1545,7 +1652,7 @@
       if (k === "type") v = v.toUpperCase();
 
       if (!hasFilter(k, v)) state.filters[k].push(v);
-      if (doApply) apply();
+      if (doApply) scheduleApply();
     };
 
     const removeFilter = (key, value, doApply = true) => {
@@ -1553,7 +1660,7 @@
       const v = norm(value);
       if (!k || !(k in state.filters) || !v) return;
       state.filters[k] = state.filters[k].filter((x) => lc(x) !== lc(v));
-      if (doApply) apply();
+      if (doApply) scheduleApply();
     };
 
     const clearAll = () => {
@@ -1564,7 +1671,7 @@
       if (search) search.value = "";
       if (input) input.value = "";
       syncDifficultyUI();
-      apply();
+      scheduleApply();
     };
 
     const renderChips = () => {
@@ -1610,6 +1717,45 @@
       return filters.some((f) => h.includes(lc(f)));
     };
 
+    const rowPasses = (tr, sectionId, q) => {
+      let ok = true;
+
+      const txt = (tr.textContent || "").toLowerCase();
+      if (q && !txt.includes(q)) ok = false;
+
+      const isSongish = [
+        "songStats",
+        "songsToLearnStats",
+        "songsNeverGotStats",
+      ].includes(sectionId);
+
+      if (ok && isSongish) {
+        const rowSong = tr.getAttribute("data-song") || "";
+        const rowArtist = tr.getAttribute("data-artist") || "";
+        const rowAnime = tr.getAttribute("data-anime") || "";
+        const rowType = (tr.getAttribute("data-type") || "").toUpperCase();
+        const rowDiff = Number(tr.getAttribute("data-difficulty"));
+
+        if (!matchAny(rowSong, state.filters.song)) ok = false;
+        if (ok && !matchAny(rowArtist, state.filters.artist)) ok = false;
+        if (ok && !matchAny(rowAnime, state.filters.anime)) ok = false;
+
+        if (ok && state.filters.type.length) {
+          ok = state.filters.type.some((t) => t.toUpperCase() === rowType);
+        }
+
+        if (ok && Number.isFinite(rowDiff)) {
+          if (rowDiff < state.diff.min || rowDiff > state.diff.max) ok = false;
+        }
+      }
+
+      return ok;
+    };
+
+    const applyRow = (tr, sectionId, q) => {
+      tr.style.display = rowPasses(tr, sectionId, q) ? "" : "none";
+    };
+
     const apply = () => {
       const activeId = root.querySelector(".as-section.as-visible")?.id;
       const q = lc(state.search);
@@ -1619,42 +1765,35 @@
       root.querySelectorAll(".as-section table tbody tr").forEach((tr) => {
         const section = tr.closest(".as-section");
         if (!section || section.id !== activeId) return;
-
-        let ok = true;
-
-        const txt = (tr.textContent || "").toLowerCase();
-        if (q && !txt.includes(q)) ok = false;
-
-        const isSongish = [
-          "songStats",
-          "songsToLearnStats",
-          "songsNeverGotStats",
-        ].includes(activeId);
-
-        if (ok && isSongish) {
-          const rowSong = tr.getAttribute("data-song") || "";
-          const rowArtist = tr.getAttribute("data-artist") || "";
-          const rowAnime = tr.getAttribute("data-anime") || "";
-          const rowType = (tr.getAttribute("data-type") || "").toUpperCase();
-          const rowDiff = Number(tr.getAttribute("data-difficulty"));
-
-          if (!matchAny(rowSong, state.filters.song)) ok = false;
-          if (ok && !matchAny(rowArtist, state.filters.artist)) ok = false;
-          if (ok && !matchAny(rowAnime, state.filters.anime)) ok = false;
-
-          if (ok && state.filters.type.length) {
-            ok = state.filters.type.some((t) => t.toUpperCase() === rowType);
-          }
-
-          if (ok && Number.isFinite(rowDiff)) {
-            if (rowDiff < state.diff.min || rowDiff > state.diff.max)
-              ok = false;
-          }
-        }
-
-        tr.style.display = ok ? "" : "none";
+        applyRow(tr, activeId, q);
       });
     };
+
+    // Wire throttled apply to the actual apply implementation.
+    _applyImpl = apply;
+
+    // Apply current filters/search to newly-rendered rows (incremental rendering)
+    root.addEventListener("as-apply-rows", (ev) => {
+      const d = (ev && ev.detail) || {};
+      const rows = Array.isArray(d.rows) ? d.rows : [];
+      if (!rows.length) return;
+
+      const q = lc(state.search);
+      const anyFilters =
+        !!q ||
+        Object.values(state.filters).some((a) => a && a.length) ||
+        state.diff.min !== 0 ||
+        state.diff.max !== 100;
+
+      if (!anyFilters) return;
+
+      rows.forEach((tr) => {
+        if (!tr || tr.nodeType !== 1) return;
+        const sectionId = d.tabId || tr.closest?.(".as-section")?.id;
+        if (!sectionId) return;
+        applyRow(tr, sectionId, q);
+      });
+    });
 
     // Allow other UI elements (e.g., Overall tab lists) to set filters robustly
     root.addEventListener("as-set-filters", (ev) => {
@@ -1693,42 +1832,115 @@
         setDifficulty(mn, mx, "both", false);
       }
 
-      apply();
+      scheduleApply();
     });
 
     root.querySelectorAll(".as-tab[data-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
         setActiveTab(root, btn.dataset.tab);
-        apply();
+        scheduleApply();
       });
     });
 
     if (search) {
-      search.addEventListener("input", () => {
+      const applySearch = () => {
         state.search = search.value.trim();
-        apply();
+        scheduleApply();
+      };
+
+      const debouncedApplySearch = debounce(applySearch, 150);
+
+      search.addEventListener("input", debouncedApplySearch);
+      search.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          applySearch();
+        }
       });
     }
 
     // Difficulty slider / inputs (min/max)
+    const throttledDifficultyApply = throttle(() => scheduleApply(), 80);
+
     if (diffMinRange) {
       diffMinRange.addEventListener("input", () => {
-        setDifficulty(diffMinRange.value, null, "min");
+        setDifficulty(diffMinRange.value, null, "min", false);
+        throttledDifficultyApply();
+      });
+
+      // Ensure we apply immediately once the user finishes dragging
+      diffMinRange.addEventListener("change", () => {
+        setDifficulty(diffMinRange.value, null, "min", true);
       });
     }
+
     if (diffMaxRange) {
       diffMaxRange.addEventListener("input", () => {
-        setDifficulty(null, diffMaxRange.value, "max");
+        setDifficulty(null, diffMaxRange.value, "max", false);
+        throttledDifficultyApply();
+      });
+
+      // Ensure we apply immediately once the user finishes dragging
+      diffMaxRange.addEventListener("change", () => {
+        setDifficulty(null, diffMaxRange.value, "max", true);
       });
     }
+
+    const sanitizeDigits = (el) => {
+      if (!el) return "";
+      const raw = String(el.value ?? "");
+      const cleaned = raw.replace(/[^0-9]/g, "");
+      if (cleaned !== raw) el.value = cleaned;
+      return cleaned;
+    };
+
+    const handleDifficultyTextInput = (which) => {
+      const el = which === "min" ? diffMin : diffMax;
+      if (!el) return;
+      const s = sanitizeDigits(el);
+      if (s === "") return; // allow clearing while typing
+
+      const v = clamp01(s);
+      if (v === null) return;
+
+      // Don't force-clamp until commit (blur/Enter); wait until value is valid vs the other bound.
+      if (which === "min" && v > state.diff.max) return;
+      if (which === "max" && v < state.diff.min) return;
+
+      setDifficulty(
+        which === "min" ? v : null,
+        which === "max" ? v : null,
+        which,
+        true
+      );
+    };
+
+    const commitDifficultyText = (which) => {
+      if (which === "min")
+        setDifficulty(diffMin ? diffMin.value : null, null, "min");
+      else setDifficulty(null, diffMax ? diffMax.value : null, "max");
+    };
+
     if (diffMin) {
-      diffMin.addEventListener("input", () => {
-        setDifficulty(diffMin.value, null, "min");
+      diffMin.addEventListener("input", () => handleDifficultyTextInput("min"));
+      diffMin.addEventListener("blur", () => commitDifficultyText("min"));
+      diffMin.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commitDifficultyText("min");
+          diffMin.blur();
+        }
       });
     }
     if (diffMax) {
-      diffMax.addEventListener("input", () => {
-        setDifficulty(null, diffMax.value, "max");
+      diffMax.addEventListener("input", () => handleDifficultyTextInput("max"));
+      diffMax.addEventListener("blur", () => commitDifficultyText("max"));
+      diffMax.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commitDifficultyText("max");
+          diffMax.blur();
+        }
       });
     }
 
@@ -1780,32 +1992,29 @@
       }
     });
 
-    // Drilldown from Overall tab elements
-    root.querySelectorAll("[data-drill-anime]").forEach((el) => {
-      el.classList.add("as-clickable");
-      el.addEventListener("click", () => {
+    // Drilldown (delegated): works with incrementally-rendered rows too
+    root.addEventListener("click", (e) => {
+      const el = e.target.closest?.("[data-drill-anime],[data-drill-artist]");
+      if (!el || !root.contains(el)) return;
+
+      if (el.hasAttribute("data-drill-anime")) {
         addFilter("anime", el.getAttribute("data-drill-anime") || "");
         setActiveTab(root, "songStats");
-        apply();
-      });
-    });
-
-    root.querySelectorAll("[data-drill-artist]").forEach((el) => {
-      el.classList.add("as-clickable");
-      el.addEventListener("click", () => {
+        scheduleApply();
+      } else if (el.hasAttribute("data-drill-artist")) {
         addFilter("artist", el.getAttribute("data-drill-artist") || "");
         setActiveTab(root, "songStats");
-        apply();
-      });
+        scheduleApply();
+      }
     });
 
     setActiveTab(root, "overallStats");
+
     syncDifficultyUI();
-    apply();
+    scheduleApply();
   }
   // ---------------------------
   // AMQ-native Lobby button logic
-  // (modeled after training mode scripts)
   // ---------------------------
 
   const BTN_ID = "amqStatsLobbyButton";
