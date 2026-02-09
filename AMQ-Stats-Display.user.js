@@ -55,11 +55,22 @@
 
             #statsModal .as-actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border-bottom:1px solid rgba(255,255,255,.08);}
             #statsModal .as-overallActions{justify-content:flex-end;padding:0;margin:2px 0 10px;border-bottom:none;}
-            #statsModal .as-overallFooter{position:sticky;bottom:0;z-index:6;display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;background:rgba(35,35,35,.98);border-top:1px solid rgba(255,255,255,.10);}
+            #statsModal .as-overallFooter{position:sticky;bottom:0;z-index:6;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:rgba(35,35,35,.98);border-top:1px solid rgba(255,255,255,.10);}
+            #statsModal .as-footerBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+            #statsModal .as-status{font-size:12px;opacity:.85;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+            #statsModal .as-status.good{color:rgb(46,204,113);}
+            #statsModal .as-status.bad{color:rgb(231,76,60);}
+            #statsModal .as-status.ok{color:rgb(241,196,15);}
             #statsModal .as-action{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);color:inherit;padding:6px 10px;border-radius:10px;cursor:pointer;font-size:13px;}
             #statsModal .as-action:hover{background:rgba(255,255,255,.09);}
             #statsModal .as-action.as-export{background:rgba(0,123,255,.35);border:1px solid rgba(0,123,255,.65);color:#fff;font-weight:700;border-radius:8px;}
 #statsModal .as-action.as-export:hover{background:rgba(0,123,255,.45);filter:none;}
+
+            /* Track Missed toggle */
+            #statsModal .as-action.as-trackOff{background:rgba(231,76,60,.35);border:1px solid rgba(231,76,60,.70);color:#fff;font-weight:700;border-radius:8px;}
+            #statsModal .as-action.as-trackOff:hover{background:rgba(231,76,60,.45);}
+            #statsModal .as-action.as-trackOn{background:rgba(46,204,113,.30);border:1px solid rgba(46,204,113,.70);color:#fff;font-weight:700;border-radius:8px;}
+            #statsModal .as-action.as-trackOn:hover{background:rgba(46,204,113,.40);}
 
             #statsModal .as-badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(var(--ink),.18);background:rgba(255,255,255,.06);white-space:nowrap;font-variant-numeric:tabular-nums;}
             #statsModal .as-badge.good{background:rgba(var(--good),.18);border-color:rgba(var(--good),.40);}
@@ -97,11 +108,14 @@
   function calculateStats() {
     const rawData = localStorage.getItem("extendedSongList");
     if (!rawData) {
-      alert(
-        'No data found in localStorage under "extendedSongList". Please ensure it is available.'
-      );
+      const msg = 'No data found in localStorage under "extendedSongList". Please ensure the Extended Song List data is generated before opening stats.';
+      if (window.messageDisplayer && typeof window.messageDisplayer.displayMessage === "function") {
+        window.messageDisplayer.displayMessage(msg);
+      } else {
+        console.warn("[AMQ Stats]", msg);
+      }
       return null;
-    }
+}
 
     const data = JSON.parse(rawData);
     const stats = {
@@ -774,7 +788,13 @@
                 </div>
               </div>
               <div class="as-overallFooter">
-                <button class="as-action as-export" id="asExportBtn" type="button" title="Export stats to CSV">Export CSV</button>
+                <span class="as-status" id="asFooterStatus"></span>
+                <div class="as-footerBtns">
+                  <button class="as-action" id="asUpdateUnplayedBtn" type="button" title="Sync the 'Unplayed' custom list with songs you have never played">Update Unplayed</button>
+                  <button class="as-action" id="asUpdateNeverGotBtn" type="button" title="Sync the 'Never Got' custom list with songs you have played but never answered correctly">Update Never Got</button>
+                  <button class="as-action as-trackOff" id="asTrackMissedToggleBtn" type="button" title="Toggle tracking missed songs into the 'Recent Missed' custom list">Track Missed Off</button>
+                  <button class="as-action as-export" id="asExportBtn" type="button" title="Export stats to CSV">Export CSV</button>
+                </div>
               </div>
             </div>
         `;
@@ -1237,7 +1257,12 @@
             #statsModal .as-controls label{display:flex;gap:6px;align-items:center;font-size:13px;opacity:.95;}
             #statsModal .as-controls .as-pill{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:12px;}
             #statsModal .as-body{flex:1;overflow:auto;padding:0;scrollbar-gutter:stable;}
-            #statsModal .as-overallFooter{position:sticky;bottom:0;z-index:6;display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;background:rgba(35,35,35,.98);border-top:1px solid rgba(255,255,255,.10);}
+            #statsModal .as-overallFooter{position:sticky;bottom:0;z-index:6;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:rgba(35,35,35,.98);border-top:1px solid rgba(255,255,255,.10);}
+            #statsModal .as-footerBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+            #statsModal .as-status{font-size:12px;opacity:.85;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+            #statsModal .as-status.good{color:rgb(46,204,113);}
+            #statsModal .as-status.bad{color:rgb(231,76,60);}
+            #statsModal .as-status.ok{color:rgb(241,196,15);}
             /* Inner table scrolling: scrollbar begins below the section heading.
                IMPORTANT: use flex sizing (not percentage heights) so scrolling never "dies". */
             #statsModal .as-body{min-height:0;} /* allow flex children to shrink */
@@ -1500,10 +1525,557 @@
     initIncrementalRendering(root, stats);
     decorateAcc(root.querySelector("#overallStats"));
     initExport(root, stats);
+    initUpdateUnplayed(root);
+    initUpdateNeverGot(root);
+    initTrackMissedToggle(root);
   }
 
   // ---------------------------
-  // CSV Export (Overall tab)
+  // Custom list sync: "Unplayed"
+  // ---------------------------
+  
+
+  function setFooterStatus(root, text, level) {
+    try {
+      const el = root && root.querySelector ? root.querySelector("#asFooterStatus") : null;
+      if (!el) return;
+      el.textContent = text || "";
+      el.classList.remove("good", "ok", "bad");
+      if (level) el.classList.add(level);
+    } catch (e) {}
+  }
+
+  // ---------------------------
+  // Custom list rate limiting
+  // ---------------------------
+  // AMQ's custom list operations send a socket command per add/remove.
+  // Spacing them out avoids hitting server/client rate limits.
+  const AS_CUSTOM_LIST_DELAY_MS = 125;
+  const AS_CUSTOM_LIST_PROGRESS_EVERY = 50;
+
+  function asSleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  
+
+  function getAnnSongId(entry, fallbackKey) {
+    // Prefer the explicit annSongId field. This avoids issues where multiple entries share the same amqSongId.
+    let id = entry && (entry.annSongId ?? entry.annSongID ?? entry.ann_song_id);
+    if (id === null || id === undefined) {
+      // Fallback: the Extended Song List is typically keyed by annSongId
+      if (typeof fallbackKey === "string" && /^\d+$/.test(fallbackKey)) id = Number(fallbackKey);
+      else if (typeof fallbackKey === "number") id = fallbackKey;
+    }
+    const n = Number(id);
+    return Number.isFinite(n) ? n : null;
+  }
+
+async function applyRateLimitedSongMutations({ root, label, list, toRemove, toAdd, delayMs }) {
+    const ms = Number.isFinite(Number(delayMs)) ? Number(delayMs) : AS_CUSTOM_LIST_DELAY_MS;
+
+    let removed = 0;
+    let added = 0;
+    let i = 0;
+    const total = (toRemove?.length || 0) + (toAdd?.length || 0);
+
+    const progress = () => {
+      if (!root) return;
+      setFooterStatus(root, `${label}: ${i}/${total}… (added ${added}, removed ${removed})`, "ok");
+    };
+
+    // Removes first, then adds
+    for (const id of toRemove || []) {
+      list.removeSongEntry(id);
+      removed += 1;
+      i += 1;
+      if (i % AS_CUSTOM_LIST_PROGRESS_EVERY === 0) progress();
+      await asSleep(ms);
+    }
+
+    for (const id of toAdd || []) {
+      const ok = list.addSongEntry(id);
+      if (ok) added += 1;
+      i += 1;
+      if (i % AS_CUSTOM_LIST_PROGRESS_EVERY === 0) progress();
+      await asSleep(ms);
+    }
+
+    if (total > 0) progress();
+    return { added, removed };
+  }
+
+  function initUpdateUnplayed(root) {
+    if (!root) return;
+    const btn = root.querySelector("#asUpdateUnplayedBtn");
+    if (!btn) return;
+
+    btn.addEventListener("click", async () => {
+      const prevText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Updating…";
+      setFooterStatus(root, "Updating 'Unplayed'…", "ok");
+
+      try {
+        const res = await syncUnplayedCustomList({ root });
+        setFooterStatus(
+          root,
+          `Unplayed updated — added ${res.added}, removed ${res.removed}.`,
+          "good"
+        );
+      } catch (e) {
+        console.error("[AMQ Stats] Update Unplayed failed", e);
+        const msg =
+          (e && e.message) ||
+          "Update Unplayed failed (see console). Tip: open Song Library → Custom Lists once to initialize customListHandler.";
+        setFooterStatus(root, msg, "bad");
+        if (window.messageDisplayer && typeof window.messageDisplayer.displayMessage === "function") {
+          window.messageDisplayer.displayMessage(msg);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prevText;
+      }
+    });
+  }
+
+
+function initUpdateNeverGot(root) {
+  if (!root) return;
+  const btn = root.querySelector("#asUpdateNeverGotBtn");
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Updating…";
+    setFooterStatus(root, "Updating 'Never Got'…", "ok");
+
+    try {
+      const res = await syncNeverGotCustomList({ root });
+      setFooterStatus(
+        root,
+        `Never Got updated — added ${res.added}, removed ${res.removed}.`,
+        "good"
+      );
+    } catch (e) {
+      console.error("[AMQ Stats] Update Never Got failed", e);
+      const msg =
+        (e && e.message) ||
+        "Update Never Got failed (see console). Tip: open Song Library → Custom Lists once to initialize customListHandler.";
+      setFooterStatus(root, msg, "bad");
+      if (window.messageDisplayer && typeof window.messageDisplayer.displayMessage === "function") {
+        window.messageDisplayer.displayMessage(msg);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevText;
+    }
+  });
+}
+
+  // ---------------------------
+  // Recent Missed tracking toggle (UI)
+  // ---------------------------
+  const AS_RECENT_MISSED_TOGGLE_KEY = "amqStats_recentMissed_tracking";
+
+  function isRecentMissedTrackingOn() {
+    try {
+      return localStorage.getItem(AS_RECENT_MISSED_TOGGLE_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setRecentMissedTrackingOn(on) {
+    try {
+      localStorage.setItem(AS_RECENT_MISSED_TOGGLE_KEY, on ? "1" : "0");
+    } catch (e) {}
+  }
+
+  function syncRecentMissedToggleButton(root) {
+    try {
+      const btn = root && root.querySelector ? root.querySelector("#asTrackMissedToggleBtn") : null;
+      if (!btn) return;
+      const on = isRecentMissedTrackingOn();
+      btn.classList.toggle("as-trackOn", on);
+      btn.classList.toggle("as-trackOff", !on);
+      btn.textContent = on ? "Track Missed On" : "Track Missed Off";
+    } catch (e) {}
+  }
+
+  function initTrackMissedToggle(root) {
+    if (!root) return;
+    const btn = root.querySelector("#asTrackMissedToggleBtn");
+    if (!btn) return;
+
+    // Initial state
+    syncRecentMissedToggleButton(root);
+
+    btn.addEventListener("click", () => {
+      const next = !isRecentMissedTrackingOn();
+      setRecentMissedTrackingOn(next);
+      syncRecentMissedToggleButton(root);
+      setFooterStatus(root, next ? "Recent Missed tracking enabled." : "Recent Missed tracking disabled.", "ok");
+    });
+  }
+
+  // ---------------------------
+  // Recent Missed tracking (game hook)
+  // ---------------------------
+  function getCustomListByNameCaseInsensitive(name) {
+    const h = window.customListHandler;
+    if (!h || !h.customListMap) return null;
+    const want = String(name || "").trim().toLowerCase();
+    const lists = Array.from(h.customListMap.values());
+    return lists.find((l) => ((l && l.name) || "").trim().toLowerCase() === want) || null;
+  }
+
+  function getRecentMissedListOrThrow() {
+    const list = getCustomListByNameCaseInsensitive("Recent Missed");
+    if (!list) throw new Error('Custom list "Recent Missed" was not found.');
+    if (list.onlyAnime) throw new Error('"Recent Missed" is set to Anime Only. Switch it to Anime + Songs first.');
+    return list;
+  }
+
+  function isSoloQuiz(quizObj) {
+    try {
+      if (!quizObj || quizObj.isSpectator) return false;
+      const players = Object.values(quizObj.players || {}).filter((p) => p && p._inGame);
+      if (players.length !== 1) return false;
+      return !!players[0].isSelf;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getSelfGamePlayerId(quizObj) {
+    try {
+      const self = Object.values(quizObj.players || {}).find((p) => p && p.isSelf);
+      return self ? self.gamePlayerId : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function getSelfCorrectFromResult(result, selfGamePlayerId) {
+    try {
+      const plist = Array.isArray(result.players)
+        ? result.players
+        : result.players
+        ? Object.values(result.players)
+        : [];
+      const selfRes = plist.find((p) => p && p.gamePlayerId === selfGamePlayerId);
+      return selfRes ? !!selfRes.correct : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function getAnnSongIdFromResult(result) {
+    const id = result && result.songInfo ? result.songInfo.annSongId : null;
+    const n = Number(id);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function initRecentMissedQueue() {
+    if (window.__amqStatsRecentMissedQueue) return window.__amqStatsRecentMissedQueue;
+    window.__amqStatsRecentMissedQueue = {
+      running: false,
+      pendingAdd: new Set(),
+      pendingRemove: new Set(),
+    };
+    return window.__amqStatsRecentMissedQueue;
+  }
+
+  function enqueueRecentMissedMutation(kind, annSongId) {
+    const q = initRecentMissedQueue();
+    if (kind === "add") {
+      q.pendingAdd.add(annSongId);
+      q.pendingRemove.delete(annSongId);
+    } else {
+      q.pendingRemove.add(annSongId);
+      q.pendingAdd.delete(annSongId);
+    }
+    if (q.running) return;
+    q.running = true;
+    processRecentMissedQueue(q);
+  }
+
+  async function processRecentMissedQueue(q) {
+    while (q.pendingAdd.size || q.pendingRemove.size) {
+      // If handler/list isn't ready, stop quietly.
+      let list;
+      try {
+        list = getRecentMissedListOrThrow();
+      } catch (e) {
+        // Don't spam console; user can open Song Library → Custom Lists to init.
+        break;
+      }
+
+      // Removes first
+      if (q.pendingRemove.size) {
+        const id = q.pendingRemove.values().next().value;
+        q.pendingRemove.delete(id);
+        try {
+          if (list.songMap && list.songMap.has(id)) list.removeSongEntry(id);
+        } catch (e) {}
+        await asSleep(AS_CUSTOM_LIST_DELAY_MS);
+        continue;
+      }
+
+      if (q.pendingAdd.size) {
+        const id = q.pendingAdd.values().next().value;
+        q.pendingAdd.delete(id);
+        try {
+          if (list.songMap && !list.songMap.has(id)) list.addSongEntry(id);
+        } catch (e) {}
+        await asSleep(AS_CUSTOM_LIST_DELAY_MS);
+        continue;
+      }
+    }
+
+    q.running = false;
+  }
+
+  function initRecentMissedTracking() {
+    if (window.__amqStatsRecentMissedHooked) return;
+    window.__amqStatsRecentMissedHooked = true;
+
+    const tryBind = () => {
+      const ListenerCtor = window.Listener || (typeof Listener !== "undefined" ? Listener : null);
+      const quizObj = window.quiz;
+      if (!ListenerCtor || !quizObj || !quizObj.players) return false;
+
+      try {
+        const l = new ListenerCtor("answer results", (result) => {
+          try {
+            if (!isRecentMissedTrackingOn()) return;
+            if (!isSoloQuiz(quizObj)) return;
+
+            const annSongId = getAnnSongIdFromResult(result);
+            if (annSongId === null) return;
+
+            const selfId = getSelfGamePlayerId(quizObj);
+            if (selfId === null) return;
+            const correct = getSelfCorrectFromResult(result, selfId);
+            if (correct === null) return;
+
+            if (correct) enqueueRecentMissedMutation("remove", annSongId);
+            else enqueueRecentMissedMutation("add", annSongId);
+          } catch (e) {}
+        });
+
+        if (typeof l.bindListener === "function") l.bindListener();
+        else if (typeof l.bind === "function") l.bind();
+        else if (typeof l.on === "function") l.on();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const interval = setInterval(() => {
+      if (tryBind()) clearInterval(interval);
+    }, 1000);
+  }
+
+  function hasSongUpload(entry) {
+    // Songs without uploads have no fileName in extendedSongList (null/undefined/empty).
+    // These entries should not count toward stats or custom-list sync.
+    return !!(entry && entry.fileName);
+  }
+
+
+  async function syncUnplayedCustomList({ root } = {}) {
+    const raw = localStorage.getItem("extendedSongList");
+    if (!raw) {
+      throw new Error('No data found in localStorage under "extendedSongList".');
+    }
+
+    const h = window.customListHandler;
+    if (!h || !h.customListMap) {
+      throw new Error("customListHandler is not available yet. Open Song Library → Custom Lists once and try again.");
+    }
+
+    // Find the list named "Unplayed" (case-insensitive)
+    const lists = Array.from(h.customListMap.values());
+    const list = lists.find((l) => ((l && l.name) || "").trim().toLowerCase() === "unplayed");
+    if (!list) {
+      throw new Error('Custom list "Unplayed" was not found.');
+    }
+    if (list.onlyAnime) {
+      throw new Error('"Unplayed" is set to Anime Only. Switch it to Anime + Songs first.');
+    }
+
+    let data;
+    try {
+      data = JSON.parse(raw) || {};
+    } catch (e) {
+      throw new Error('Failed to parse "extendedSongList" JSON.');
+    }
+
+    /**
+     * Some songs have multiple annSongId entries but share the same amqSongId (same underlying audio / AMQ "song").
+     * If ANY entry for an amqSongId has been played, we treat the whole group as played so "phantom unplayed"
+     * duplicates don't get stuck.
+     */
+    const byAmq = new Map(); // amqSongId -> { played:boolean, annIds:Set<number> }
+    const fallbackUnplayed = new Set(); // if amqSongId missing, fall back to per-entry check
+
+    for (const [key, entry] of Object.entries(data)) {
+      if (!entry) continue;
+      if (!hasSongUpload(entry)) continue;
+      if (!hasSongUpload(entry)) continue;
+      if (!hasSongUpload(entry)) continue;
+
+      const correct = Number(entry.totalCorrectCount) || 0;
+      const wrong = Number(entry.totalWrongCount) || 0;
+      const plays = correct + wrong;
+
+      const annId = getAnnSongId(entry, key);
+      const amqId = Number(entry.amqSongId);
+
+      if (Number.isFinite(amqId) && amqId > 0) {
+        let g = byAmq.get(amqId);
+        if (!g) {
+          g = { played: false, annIds: new Set() };
+          byAmq.set(amqId, g);
+        }
+        if (annId !== null) g.annIds.add(annId);
+        if (plays > 0) g.played = true;
+      } else {
+        // Rare: no amqSongId; use per-entry plays
+        if (plays === 0 && annId !== null) fallbackUnplayed.add(annId);
+      }
+    }
+
+    const unplayed = new Set(fallbackUnplayed);
+    for (const g of byAmq.values()) {
+      if (!g.played) {
+        for (const id of g.annIds) unplayed.add(id);
+      }
+    }
+
+    // Existing songs in the custom list
+    const existing = new Set(Array.from(list.songMap.keys()).map((x) => Number(x)).filter(Number.isFinite));
+
+    const toRemove = [];
+    for (const id of existing) {
+      if (!unplayed.has(id)) toRemove.push(id);
+    }
+
+    const toAdd = [];
+    for (const id of unplayed) {
+      if (!existing.has(id)) toAdd.push(id);
+    }
+
+    return await applyRateLimitedSongMutations({
+      root,
+      label: "Unplayed",
+      list,
+      toRemove,
+      toAdd,
+    });
+  }
+
+
+// ---------------------------
+// Custom list sync: "Never Got"
+// ---------------------------
+async function syncNeverGotCustomList({ root } = {}) {
+  const raw = localStorage.getItem("extendedSongList");
+  if (!raw) {
+    throw new Error('No data found in localStorage under "extendedSongList".');
+  }
+
+  const h = window.customListHandler;
+  if (!h || !h.customListMap) {
+    throw new Error("customListHandler is not available yet. Open Song Library → Custom Lists once and try again.");
+  }
+
+  // Find the list named "Never Got" (case-insensitive)
+  const lists = Array.from(h.customListMap.values());
+  const list = lists.find((l) => ((l && l.name) || "").trim().toLowerCase() === "never got");
+  if (!list) {
+    throw new Error('Custom list "Never Got" was not found.');
+  }
+  if (list.onlyAnime) {
+    throw new Error('"Never Got" is set to Anime Only. Switch it to Anime + Songs first.');
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw) || {};
+  } catch (e) {
+    throw new Error('Failed to parse "extendedSongList" JSON.');
+  }
+
+  /**
+   * Group by amqSongId for the same reason as Unplayed:
+   * - "Never Got" should disappear once you've EVER gotten the AMQ song correct,
+   *   even if one duplicate annSongId entry remains at 0 due to data duplication.
+   */
+  const byAmq = new Map(); // amqSongId -> { played:boolean, everCorrect:boolean, annIds:Set<number> }
+  const fallbackNeverGot = new Set(); // if amqSongId missing, fall back to per-entry check
+
+  for (const [key, entry] of Object.entries(data)) {
+    if (!entry) continue;
+      if (!hasSongUpload(entry)) continue;
+
+    const correct = Number(entry.totalCorrectCount) || 0;
+    const wrong = Number(entry.totalWrongCount) || 0;
+    const plays = correct + wrong;
+
+    const annId = getAnnSongId(entry, key);
+    const amqId = Number(entry.amqSongId);
+
+    if (Number.isFinite(amqId) && amqId > 0) {
+      let g = byAmq.get(amqId);
+      if (!g) {
+        g = { played: false, everCorrect: false, annIds: new Set() };
+        byAmq.set(amqId, g);
+      }
+      if (annId !== null) g.annIds.add(annId);
+      if (plays > 0) g.played = true;
+      if (correct > 0) g.everCorrect = true;
+    } else {
+      // Rare: no amqSongId; use per-entry logic
+      if (plays > 0 && correct === 0 && annId !== null) fallbackNeverGot.add(annId);
+    }
+  }
+
+  const neverGot = new Set(fallbackNeverGot);
+  for (const g of byAmq.values()) {
+    if (g.played && !g.everCorrect) {
+      for (const id of g.annIds) neverGot.add(id);
+    }
+  }
+
+  // Existing songs in the custom list
+  const existing = new Set(Array.from(list.songMap.keys()).map((x) => Number(x)).filter(Number.isFinite));
+
+  const toRemove = [];
+  for (const id of existing) {
+    if (!neverGot.has(id)) toRemove.push(id);
+  }
+
+  const toAdd = [];
+  for (const id of neverGot) {
+    if (!existing.has(id)) toAdd.push(id);
+  }
+
+  return await applyRateLimitedSongMutations({
+    root,
+    label: "Never Got",
+    list,
+    toRemove,
+    toAdd,
+  });
+}
+
+
+// CSV Export (Overall tab)
   // ---------------------------
   function initExport(root, stats) {
     if (!root) return;
@@ -1521,7 +2093,7 @@
         downloadTextAsFile(filename, csvText, "text/csv;charset=utf-8");
       } catch (e) {
         console.error("[AMQ Stats] export failed", e);
-        alert("Export failed. Check the console for details.");
+        setFooterStatus(root, "Export failed (see console).", "bad");
       }
     });
   }
@@ -2498,6 +3070,7 @@
 
   function boot() {
     initDailyAccuracyTracking();
+    initRecentMissedTracking();
     hookLobbyLifecycle();
     // If lobby already exists but setupLobby hasn’t fired yet, try add
     try {
