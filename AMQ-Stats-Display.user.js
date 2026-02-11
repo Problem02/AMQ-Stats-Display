@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AMQ Stats Display
 // @namespace    https://animemusicquiz.com/
-// @version      1.2
+// @version      1.3
 // @description  Display stats
 // @author       Problem02
 // @match        https://animemusicquiz.com/*
@@ -1860,17 +1860,6 @@ function initUpdateNeverGot(root) {
     return list;
   }
 
-  function isSoloQuiz(quizObj) {
-    try {
-      if (!quizObj || quizObj.isSpectator) return false;
-      const players = Object.values(quizObj.players || {}).filter((p) => p && p._inGame);
-      if (players.length !== 1) return false;
-      return !!players[0].isSelf;
-    } catch (e) {
-      return false;
-    }
-  }
-
   function getSelfGamePlayerId(quizObj) {
     try {
       const self = Object.values(quizObj.players || {}).find((p) => p && p.isSelf);
@@ -1973,7 +1962,6 @@ function initUpdateNeverGot(root) {
         const l = new ListenerCtor("answer results", (result) => {
           try {
             if (!isRecentMissedTrackingOn()) return;
-            if (!isSoloQuiz(quizObj)) return;
 
             const annSongId = getAnnSongIdFromResult(result);
             if (annSongId === null) return;
