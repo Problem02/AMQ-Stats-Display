@@ -687,6 +687,12 @@
     }, 1000);
   }
 
+  function hasSongUpload(entry) {
+    // Songs without uploads have no fileName in extendedSongList (null/undefined/empty).
+    // These entries should not count toward stats or custom-list sync.
+    return !!(entry && entry.fileName);
+  }
+
   function escapeHtml(str) {
     if (str === null || str === undefined) return "";
     return String(str)
@@ -2034,6 +2040,9 @@ function initUpdateNeverGot(root) {
 
     for (const [key, entry] of Object.entries(data)) {
       if (!entry) continue;
+      if (!hasSongUpload(entry)) continue;
+      if (!hasSongUpload(entry)) continue;
+      if (!hasSongUpload(entry)) continue;
 
       const correct = Number(entry.totalCorrectCount) || 0;
       const wrong = Number(entry.totalWrongCount) || 0;
@@ -2127,6 +2136,7 @@ async function syncNeverGotCustomList({ root } = {}) {
 
   for (const [key, entry] of Object.entries(data)) {
     if (!entry) continue;
+    if (!hasSongUpload(entry)) continue;
 
     const correct = Number(entry.totalCorrectCount) || 0;
     const wrong = Number(entry.totalWrongCount) || 0;
