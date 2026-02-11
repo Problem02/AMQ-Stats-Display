@@ -16,6 +16,10 @@
 
   const types = ["OP", "ED", "IN"];
 
+  // Overall-stats display toggle: only count songs with difficulty < 30.
+  // (Difficulty is the "globalPercent" field from the extended song list.)
+  let __asUnder30DifficultyOnly = false;
+
   function injectStatsButtonCSS() {
     if (document.getElementById("amqStatsBtnCss")) return;
 
@@ -43,10 +47,30 @@
             /* --- UI enhancements --- */
             #statsModal{ --good:46,204,113; --ok:241,196,15; --bad:231,76,60; --ink:255,255,255; }
 
-            #statsModal .as-summary{display:flex;gap:10px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);}
+            /* KPI bar (small stat cards row) */
+            /* align-items:center keeps the Under 30 toggle vertically centered with the KPI cards */
+            #statsModal .as-summaryBar{display:flex;gap:10px;align-items:center;flex-wrap:nowrap;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);}
+            #statsModal .as-summary{display:flex;gap:10px;flex-wrap:wrap;flex:1;min-width:0;padding:0;margin:0;}
             #statsModal .as-kpi{padding:6px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);font-variant-numeric:tabular-nums;min-width:120px;}
             #statsModal .as-kpi b{display:block;font-size:12px;opacity:.75;margin-bottom:2px;}
             #statsModal .as-kpi span{font-size:14px;font-weight:700;}            #statsModal .as-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:12px;}
+
+            /* Under-30 difficulty toggle (match the overview footer buttons) */
+            #statsModal .as-under30Btn{
+              cursor:pointer;user-select:none;white-space:nowrap;
+              align-self:center;
+              padding:6px 10px;
+              border-radius:10px;
+              background:rgba(255,255,255,.06);
+              border:1px solid rgba(255,255,255,.10);
+              color:inherit;
+              font-size:13px;
+              font-weight:700;
+              line-height:1.1;
+            }
+            #statsModal .as-under30Btn:hover{background:rgba(255,255,255,.09);}
+            #statsModal .as-under30Btn.as-on{background:rgba(46,204,113,.18);border-color:rgba(46,204,113,.55);color:rgb(46,204,113);}
+            #statsModal .as-under30Btn:focus{outline:none;box-shadow:0 0 0 2px rgba(255,255,255,.15);}
             #statsModal .as-card{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);border-radius:12px;padding:10px 12px;}
             #statsModal .as-card h4{margin:0 0 8px 0;font-size:13px;opacity:.9;}
             #statsModal .as-card .as-row{display:flex;justify-content:space-between;gap:10px;font-variant-numeric:tabular-nums;padding:3px 0;border-bottom:1px dashed rgba(255,255,255,.10);}
@@ -71,6 +95,15 @@
             #statsModal .as-action.as-trackOff:hover{background:rgba(231,76,60,.45);}
             #statsModal .as-action.as-trackOn{background:rgba(46,204,113,.30);border:1px solid rgba(46,204,113,.70);color:#fff;font-weight:700;border-radius:8px;}
             #statsModal .as-action.as-trackOn:hover{background:rgba(46,204,113,.40);}
+
+            /* --- Top lists (Most played / Worst accuracy) ---
+               Keep the right-side "plays · %" badge pinned while allowing
+               the song/artist text to wrap onto multiple lines.
+            */
+            #statsModal .as-listItem{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:2px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08);}
+            #statsModal .as-listItem:last-child{border-bottom:none;}
+            #statsModal .as-liLeft{min-width:0;white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word;}
+            #statsModal .as-liRight{white-space:nowrap;justify-self:end;align-self:center;}
 
             #statsModal .as-badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(var(--ink),.18);background:rgba(255,255,255,.06);white-space:nowrap;font-variant-numeric:tabular-nums;}
             #statsModal .as-badge.good{background:rgba(var(--good),.18);border-color:rgba(var(--good),.40);}
@@ -105,7 +138,11 @@
     document.head.appendChild(style);
   }
 
-  function calculateStats() {
+  function calculateStats(options = {}) {
+    const difficultyMax =
+      options && typeof options.difficultyMax === "number"
+        ? options.difficultyMax
+        : null;
     const rawData = localStorage.getItem("extendedSongList");
     if (!rawData) {
       const msg = 'No data found in localStorage under "extendedSongList". Please ensure the Extended Song List data is generated before opening stats.';
@@ -164,11 +201,16 @@
     });
 
     Object.entries(data).forEach(([_, entry]) => {
+      if (entry.fileName === null) return;
+
       const type = types[entry.type - 1];
       const correct = entry.totalCorrectCount || 0;
       const wrong = entry.totalWrongCount || 0;
       const plays = correct + wrong;
-      const diff = entry.globalPercent;
+      const diff = Number(entry.globalPercent);
+
+      // Optional global filter: only include songs below a given difficulty.
+      if (difficultyMax !== null && !(diff < difficultyMax)) return;
       const percentage = plays > 0 ? (correct / plays) * 100 : 0;
 
       // Update overall stats
@@ -655,7 +697,11 @@
       .replace(/'/g, "&#39;");
   }
 
-  function formatOverallStats(stats) {
+  function formatOverallStats(stats, options = {}) {
+    const under30DiffOnly = !!options.under30DiffOnly;
+    // "Most played" and "Worst accuracy" should always reflect full stats,
+    // even when the under-30 difficulty filter is enabled.
+    const listsStats = options.listsStats || stats;
     const { overall, under30, types } = stats;
 
     const safePct = (num, den) => (den > 0 ? (num / den) * 100 : 0);
@@ -665,16 +711,16 @@
     const learnedPct = safePct(overall.learned, overall.totalEntries);
     const unplayedPct = safePct(overall.unplayed, overall.totalEntries);
 
-    const topPlayed = (stats.songStats || []).slice(0, 5);
-    const worst = (stats.songStats || [])
+    const topPlayed = (listsStats.songStats || []).slice(0, 5);
+    const worst = (listsStats.songStats || [])
       .filter((s) => (s.plays || 0) >= 5)
       .slice()
       .sort((a, b) => (a.percentage || 0) - (b.percentage || 0))
       .slice(0, 5);
 
     const listItem = (s) => `
-      <li style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08);">
-        <span>
+      <li class="as-listItem">
+        <span class="as-liLeft">
           <span class="as-clickable" data-goto-tab="songStats" data-goto-song="${escapeHtml(
             s.song
           )}" data-goto-artist="${escapeHtml(
@@ -682,12 +728,13 @@
     )}" data-goto-search="${escapeHtml(s.song)}">${escapeHtml(s.song)}</span>
           <span class="as-muted"> — ${escapeHtml(s.artist)}</span>
         </span>
-        <span class="as-muted">plays: ${s.plays} · ${(
+        <span class="as-liRight as-muted">plays: ${s.plays} · ${(
       s.percentage || 0
     ).toFixed(2)}%</span>
       </li>`;
 
     const typeCard = (label, t) => {
+      const labelSuffix = under30DiffOnly ? " - Under 30" : "";
       const tAcc = safePct(t.correct || 0, t.plays || 0);
       const tGet = safePct(t.gettable || 0, t.total || 0);
       const tLearn = safePct(t.learned || 0, t.total || 0);
@@ -695,7 +742,7 @@
       const tPlayedPct = safePct(tPlayed, t.total || 0);
       return `
         <div class="as-card">
-          <h4>${label}</h4>
+          <h4>${label}${labelSuffix}</h4>
           <div class="as-row"><span class="as-muted">Entries</span><span>${
             t.total || 0
           }</span></div>
@@ -720,7 +767,8 @@
     const uAcc = safePct(under30.correctCount, under30.totalPlays);
     return `
             <div id="overallStats">
-<div class="as-summary">
+<div class="as-summaryBar">
+              <div class="as-summary">
                 <div class="as-kpi"><b>Total entries</b><span>${
                   overall.totalEntries
                 }</span></div>
@@ -739,6 +787,11 @@
                 <div class="as-kpi"><b>Unplayed</b><span class="as-unplayed-pct">${unplayedPct.toFixed(
                   2
                 )}%</span></div>
+              </div>
+
+              <button class="as-under30Btn ${under30DiffOnly ? "as-on" : ""}" id="asUnder30DiffBtn" type="button" aria-pressed="${
+                under30DiffOnly ? "true" : "false"
+              }" title="Toggle stats to only include songs under 30 difficulty">Under 30</button>
               </div>
 
               <div class="as-grid">
@@ -1273,7 +1326,8 @@
             #statsModal.as-innerScroll .as-tableWrap{flex:1;min-height:0;overflow:hidden;}
             #statsModal.as-innerScroll table.as-table{width:100%;height:100%;display:block;table-layout:fixed;}
             #statsModal.as-innerScroll table.as-table thead{display:block;}
-            #statsModal.as-innerScroll table.as-table tbody{display:block;overflow:auto;height:calc(100% - var(--as-thead-h, 0px));scrollbar-gutter:stable;}
+
+            #statsModal.as-innerScroll table.as-table tbody{display:block;overflow:auto;height:calc(100% - var(--as-thead-h, 44px));scrollbar-gutter:stable;padding-bottom:12px;box-sizing:border-box;}
             #statsModal.as-innerScroll table.as-table thead tr,
             #statsModal.as-innerScroll table.as-table tbody tr{display:table;width:100%;table-layout:fixed;}
             #statsModal.as-innerScroll table.as-table thead th{position:relative !important;top:auto !important;}
@@ -1294,7 +1348,7 @@
 
             #statsModal tbody td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px;vertical-align:top;}
             #statsModal table.as-table tbody tr:nth-child(even){background:rgba(255,255,255,.02);}
-            #statsModal table.as-table tbody tr:hover{background:rgba(255,255,255,.05);} 
+            #statsModal table.as-table tbody tr:hover{background:rgba(255,255,255,.05);}
             #statsModal .as-clickable{color:#9ad1ff;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
 
             #statsModal .as-filter-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -1306,7 +1360,7 @@
             #statsModal .as-filterable{cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.35);text-underline-offset:3px;}
             #statsModal .as-filterable:hover{text-decoration-color:rgba(255,255,255,.75);}
 #statsModal .as-muted{opacity:.75;}
-        
+
 /* --- Table alignment refresh --- */
 #statsModal table.as-table th, #statsModal table.as-table td{ text-align:left !important; }
 
@@ -1333,6 +1387,11 @@
 
   function showModal(stats) {
     ensureStyles();
+
+    // Keep a reference to the unfiltered stats for this modal instance.
+    // The Under 30 toggle only affects the Overall cards display.
+    const __asFullStats = stats;
+    let __asUnder30StatsCache = null;
 
     const existing = document.getElementById("statsModal");
     if (existing) existing.remove();
@@ -1390,7 +1449,7 @@
                 <button class="as-tab" id="asClearFilters" type="button">Clear</button>
               </div>
 <div class="as-body" id="asBody">
-                ${formatOverallStats(stats)}
+                ${formatOverallStats(stats, { under30DiffOnly: __asUnder30DifficultyOnly, listsStats: stats })}
                 ${formatAnimeStats(stats)}
                 ${formatArtistStats(stats)}
                 ${formatSongStats(stats)}
@@ -1472,6 +1531,63 @@
 
     document.body.appendChild(root);
 
+    // --- Under 30 difficulty toggle (Overall cards) ---
+    const bindUnder30DifficultyToggle = () => {
+      const btn = root.querySelector("#asUnder30DiffBtn");
+      if (!btn) return;
+
+      const applyToggle = () => {
+        __asUnder30DifficultyOnly = !__asUnder30DifficultyOnly;
+
+        if (__asUnder30DifficultyOnly && !__asUnder30StatsCache) {
+          // Difficulty filter: show only songs with difficulty < 30.
+          __asUnder30StatsCache = calculateStats({ difficultyMax: 30 });
+        }
+
+        const nextStats = __asUnder30DifficultyOnly
+          ? __asUnder30StatsCache || __asFullStats
+          : __asFullStats;
+
+        const oldOverall = root.querySelector("#overallStats");
+        if (!oldOverall) return;
+        const wasVisible = oldOverall.classList.contains("as-visible");
+
+        oldOverall.outerHTML = formatOverallStats(nextStats, {
+          under30DiffOnly: __asUnder30DifficultyOnly,
+          listsStats: __asFullStats,
+        });
+
+        const newOverall = root.querySelector("#overallStats");
+        if (newOverall) {
+          newOverall.classList.add("as-section");
+          if (wasVisible) newOverall.classList.add("as-visible");
+          decorateAcc(newOverall);
+        }
+
+        // Re-bind footer buttons that live inside Overall.
+        initExport(root, nextStats);
+        initUpdateUnplayed(root);
+        initUpdateNeverGot(root);
+        initTrackMissedToggle(root);
+        try {
+          renderDailyAccuracyChart(root);
+        } catch (e) {}
+
+        // Re-bind the toggle itself (we replaced the DOM).
+        bindUnder30DifficultyToggle();
+      };
+
+      btn.addEventListener("click", applyToggle);
+      btn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          applyToggle();
+        }
+      });
+    };
+
+    bindUnder30DifficultyToggle();
+
     // Cache initial (unfiltered) item counts so we can switch between total vs filtered counts.
     root.querySelectorAll(".as-sectionHeading .as-count").forEach((el) => {
       if (!el.dataset.total)
@@ -1533,7 +1649,7 @@
   // ---------------------------
   // Custom list sync: "Unplayed"
   // ---------------------------
-  
+
 
   function setFooterStatus(root, text, level) {
     try {
@@ -1557,7 +1673,7 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  
+
 
   function getAnnSongId(entry, fallbackKey) {
     // Prefer the explicit annSongId field. This avoids issues where multiple entries share the same amqSongId.
@@ -1880,13 +1996,6 @@ function initUpdateNeverGot(root) {
     }, 1000);
   }
 
-  function hasSongUpload(entry) {
-    // Songs without uploads have no fileName in extendedSongList (null/undefined/empty).
-    // These entries should not count toward stats or custom-list sync.
-    return !!(entry && entry.fileName);
-  }
-
-
   async function syncUnplayedCustomList({ root } = {}) {
     const raw = localStorage.getItem("extendedSongList");
     if (!raw) {
@@ -1925,9 +2034,6 @@ function initUpdateNeverGot(root) {
 
     for (const [key, entry] of Object.entries(data)) {
       if (!entry) continue;
-      if (!hasSongUpload(entry)) continue;
-      if (!hasSongUpload(entry)) continue;
-      if (!hasSongUpload(entry)) continue;
 
       const correct = Number(entry.totalCorrectCount) || 0;
       const wrong = Number(entry.totalWrongCount) || 0;
@@ -2021,7 +2127,6 @@ async function syncNeverGotCustomList({ root } = {}) {
 
   for (const [key, entry] of Object.entries(data)) {
     if (!entry) continue;
-      if (!hasSongUpload(entry)) continue;
 
     const correct = Number(entry.totalCorrectCount) || 0;
     const wrong = Number(entry.totalWrongCount) || 0;
