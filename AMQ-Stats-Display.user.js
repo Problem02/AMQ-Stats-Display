@@ -2019,45 +2019,26 @@ function initUpdateNeverGot(root) {
     }
 
     /**
-     * Some songs have multiple annSongId entries but share the same amqSongId (same underlying audio / AMQ "song").
-     * If ANY entry for an amqSongId has been played, we treat the whole group as played so "phantom unplayed"
-     * duplicates don't get stuck.
+     * IMPORTANT:
+     * We intentionally key this list by annSongId (NOT amqSongId).
      */
-    const byAmq = new Map(); // amqSongId -> { played:boolean, annIds:Set<number> }
-    const fallbackUnplayed = new Set(); // if amqSongId missing, fall back to per-entry check
+    const unplayed = new Set();
 
     for (const [key, entry] of Object.entries(data)) {
       if (!entry) continue;
       if (!hasSongUpload(entry)) continue;
-      if (!hasSongUpload(entry)) continue;
-      if (!hasSongUpload(entry)) continue;
+
+      // Some extendedSongList builds include a "media" field; skip broken rows where media is explicitly null
+      if ("media" in entry && entry.media == null) continue;
 
       const correct = Number(entry.totalCorrectCount) || 0;
       const wrong = Number(entry.totalWrongCount) || 0;
       const plays = correct + wrong;
 
       const annId = getAnnSongId(entry, key);
-      const amqId = Number(entry.amqSongId);
+      if (annId === null) continue;
 
-      if (Number.isFinite(amqId) && amqId > 0) {
-        let g = byAmq.get(amqId);
-        if (!g) {
-          g = { played: false, annIds: new Set() };
-          byAmq.set(amqId, g);
-        }
-        if (annId !== null) g.annIds.add(annId);
-        if (plays > 0) g.played = true;
-      } else {
-        // Rare: no amqSongId; use per-entry plays
-        if (plays === 0 && annId !== null) fallbackUnplayed.add(annId);
-      }
-    }
-
-    const unplayed = new Set(fallbackUnplayed);
-    for (const g of byAmq.values()) {
-      if (!g.played) {
-        for (const id of g.annIds) unplayed.add(id);
-      }
+      if (plays === 0) unplayed.add(annId);
     }
 
     // Existing songs in the custom list
@@ -2115,44 +2096,27 @@ async function syncNeverGotCustomList({ root } = {}) {
   }
 
   /**
-   * Group by amqSongId for the same reason as Unplayed:
-   * - "Never Got" should disappear once you've EVER gotten the AMQ song correct,
-   *   even if one duplicate annSongId entry remains at 0 due to data duplication.
+   * IMPORTANT:
+   * We intentionally key this list by annSongId (NOT amqSongId).
    */
-  const byAmq = new Map(); // amqSongId -> { played:boolean, everCorrect:boolean, annIds:Set<number> }
-  const fallbackNeverGot = new Set(); // if amqSongId missing, fall back to per-entry check
+  const neverGot = new Set();
 
   for (const [key, entry] of Object.entries(data)) {
     if (!entry) continue;
     if (!hasSongUpload(entry)) continue;
+
+    // Some extendedSongList builds include a "media" field; skip broken rows where media is explicitly null
+    if ("media" in entry && entry.media == null) continue;
 
     const correct = Number(entry.totalCorrectCount) || 0;
     const wrong = Number(entry.totalWrongCount) || 0;
     const plays = correct + wrong;
 
     const annId = getAnnSongId(entry, key);
-    const amqId = Number(entry.amqSongId);
+    if (annId === null) continue;
 
-    if (Number.isFinite(amqId) && amqId > 0) {
-      let g = byAmq.get(amqId);
-      if (!g) {
-        g = { played: false, everCorrect: false, annIds: new Set() };
-        byAmq.set(amqId, g);
-      }
-      if (annId !== null) g.annIds.add(annId);
-      if (plays > 0) g.played = true;
-      if (correct > 0) g.everCorrect = true;
-    } else {
-      // Rare: no amqSongId; use per-entry logic
-      if (plays > 0 && correct === 0 && annId !== null) fallbackNeverGot.add(annId);
-    }
-  }
-
-  const neverGot = new Set(fallbackNeverGot);
-  for (const g of byAmq.values()) {
-    if (g.played && !g.everCorrect) {
-      for (const id of g.annIds) neverGot.add(id);
-    }
+    // Played at least once, but never correct
+    if (plays > 0 && correct === 0) neverGot.add(annId);
   }
 
   // Existing songs in the custom list
